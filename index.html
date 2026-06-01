@@ -348,20 +348,57 @@ body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-
   position: relative;
   cursor: grab;
   display: inline-block;
+  width: 54px;
+  flex-shrink: 0;
 }
-.g-card img {
-  width: 52px;
-  height: 73px;
-  object-fit: cover;
-  border-radius: 4px;
+.g-card-face {
+  width: 54px;
+  height: 76px;
+  border-radius: 5px;
   border: 1px solid var(--border);
-  display: block;
-  transition: transform 0.1s;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: transform 0.1s, border-color 0.1s;
   user-select: none;
-  pointer-events: none;
 }
-.g-card.tapped img { transform: rotate(90deg); margin: 10px 0; }
-.g-card:hover img { border-color: var(--accent); }
+.g-card.tapped .g-card-face {
+  transform: rotate(90deg);
+  margin: 11px -11px;
+}
+.g-card:hover .g-card-face { border-color: var(--accent); }
+.g-card-color {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+.g-card-color-seg { flex: 1; }
+.g-card-info {
+  background: rgba(0,0,0,0.72);
+  padding: 2px 3px;
+  flex-shrink: 0;
+}
+.g-card-type {
+  font-size: 8px;
+  color: #aac8ff;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.g-card-cost {
+  font-size: 8px;
+  color: #ffe080;
+  line-height: 1.2;
+}
+.g-card-name {
+  font-size: 7.5px;
+  color: #e8eeff;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .g-card .card-menu-btn {
   position: absolute;
   bottom: 2px;
@@ -376,6 +413,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-
   cursor: pointer;
   white-space: nowrap;
   display: none;
+  z-index: 10;
 }
 .g-card:hover .card-menu-btn { display: block; }
 
@@ -624,7 +662,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-
 <!-- Card detail overlay -->
 <div class="card-detail-overlay" id="card-detail-overlay" onclick="closeCardDetail()">
   <div class="card-detail" onclick="event.stopPropagation()">
-    <img id="cd-img" src="" alt="">
+    <div id="cd-img" style="width:120px;height:168px;flex-shrink:0;border-radius:6px;overflow:hidden;display:flex;flex-direction:column;"></div>
     <div class="card-detail-info">
       <div class="cd-name" id="cd-name"></div>
       <div class="cd-id" id="cd-id"></div>
@@ -658,17 +696,69 @@ let gState = {
 let uid = 0;
 const newUid = () => ++uid;
 
-// card image url
-function imgUrl(card) {
-  const pretty = card.pretty_url || (card.id || '').toLowerCase().replace(/-/g, '-');
-  return `https://digimoncard.io/images/cards/${pretty}.jpg`;
-}
-
-// 日本語ラベル
-const TYPE_JA  = { Digimon:'デジモン', 'Digi-Egg':'タマゴ', Tamer:'テイマー', Option:'オプション' };
+// カラーパレット
+const COLOR_HEX = {
+  Red:'#c0302a', Blue:'#2060c0', Yellow:'#c0a010',
+  Green:'#208040', Black:'#303030', Purple:'#6030a0',
+  White:'#909090', Colorless:'#505060'
+};
 const COLOR_JA = { Red:'赤', Blue:'青', Yellow:'黄', Green:'緑', Black:'黒', Purple:'紫', White:'白', Colorless:'無色' };
+const TYPE_JA  = { Digimon:'デジモン', 'Digi-Egg':'タマゴ', Tamer:'テイマー', Option:'オプション' };
 function jaType(v)  { return TYPE_JA[v]  || v || ''; }
 function jaColor(v) { return COLOR_JA[v] || v || ''; }
+function colorHex(v) { return COLOR_HEX[v] || '#404040'; }
+
+// カード種別ラベル: D・Lv6 / T / O / DA・Lv7 / DO・Lv6
+function cardTypeLabel(card) {
+  const lv = card.level ? `・Lv${card.level}` : '';
+  const t = card.type || '';
+  const alt = card.alt_effect || '';
+  const isAce = (card.name || '').includes('Ace') || (card.main_effect||'').includes('ACE') || (card.digi_type||'').includes('Ace');
+  // Dual card: Digimonかつオプション効果あり（alt_effectあり）
+  if (t === 'Digimon' && alt && alt.length > 5) return `DO${lv}`;
+  if (t === 'Digimon' && isAce) return `DA${lv}`;
+  if (t === 'Digimon') return `D${lv}`;
+  if (t === 'Tamer')   return 'T';
+  if (t === 'Option')  return 'O';
+  if (t === 'Digi-Egg') return `D${lv}`;
+  return t;
+}
+
+// コストラベル: C12 など
+function cardCostLabel(card) {
+  const t = card.type || '';
+  const alt = card.alt_effect || '';
+  // デュアルカード → オプション側コスト = play_cost
+  if (t === 'Digimon' && alt && alt.length > 5) {
+    return card.play_cost != null ? `C${card.play_cost}` : '';
+  }
+  if (t === 'Digimon') {
+    return card.play_cost != null ? `C${card.play_cost}` : '';
+  }
+  if (t === 'Tamer' || t === 'Option') {
+    return card.play_cost != null ? `C${card.play_cost}` : '';
+  }
+  return '';
+}
+
+// カードフェイスHTML（色帯＋テキスト）
+function cardFaceHtml(card) {
+  const colors = [card.color, card.color2, card.color3].filter(Boolean);
+  const segs = colors.length > 0 ? colors : ['Colorless'];
+  const segHtml = segs.map(c =>
+    `<div class="g-card-color-seg" style="background:${colorHex(c)}"></div>`
+  ).join('');
+  const typeLabel = cardTypeLabel(card);
+  const costLabel = cardCostLabel(card);
+  return `
+    <div class="g-card-color">${segHtml}</div>
+    <div class="g-card-info">
+      <div class="g-card-type">${typeLabel}</div>
+      ${costLabel ? `<div class="g-card-cost">${costLabel}</div>` : ''}
+      <div class="g-card-name">${card.name || ''}</div>
+    </div>`;
+}
+
 function jaLabel(card) {
   const parts = [];
   if (card.type)  parts.push(jaType(card.type));
@@ -721,7 +811,7 @@ function renderSearchResults(cards) {
     const div = document.createElement('div');
     div.className = 'result-card';
     div.innerHTML = `
-      <img class="result-thumb" src="${imgUrl(card)}" alt="${card.name}" onerror="this.style.background='#1a2a44'">
+      <div class="result-thumb" style="display:flex;flex-direction:column;overflow:hidden;border-radius:3px;border:1px solid var(--border);">${(() => { const segs=[card.color,card.color2].filter(Boolean); return (segs.length?segs:['Colorless']).map(c=>`<div style="flex:1;background:${colorHex(c)}"></div>`).join(''); })()}</div>
       <div class="result-info">
         <div class="result-name">${card.name}</div>
         <div class="result-id">${card.id}</div>
@@ -795,8 +885,16 @@ function renderDeckSection(deck, elId, which) {
   deck.forEach(entry => {
     const div = document.createElement('div');
     div.className = 'deck-card-item';
+    const faceSegs = [entry.cardData.color, entry.cardData.color2].filter(Boolean);
+    const faceCols = (faceSegs.length ? faceSegs : ['Colorless']).map(c => `<div style="flex:1;background:${colorHex(c)}"></div>`).join('');
     div.innerHTML = `
-      <img src="${imgUrl(entry.cardData)}" alt="${entry.name}" onerror="this.style.background='#1a2a44'" title="${entry.name}&#10;${entry.id}">
+      <div style="width:60px;height:84px;display:flex;flex-direction:column;border-radius:4px;border:1px solid var(--border);overflow:hidden;cursor:pointer;" title="${entry.name}&#10;${entry.id}">
+        <div style="flex:1;display:flex;">${faceCols}</div>
+        <div style="background:rgba(0,0,0,0.75);padding:2px 3px;">
+          <div style="font-size:8px;color:#aac8ff;">${cardTypeLabel(entry.cardData)}</div>
+          <div style="font-size:7px;color:#e8eeff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${entry.name}</div>
+        </div>
+      </div>
       <div class="deck-card-count">${entry.count}</div>
       <button class="deck-card-remove" onclick="removeFromDeck('${which}','${entry.id}')">−</button>`;
     div.querySelector('img').addEventListener('click', () => showCardDetail(entry.cardData));
@@ -890,7 +988,7 @@ function renderTrashTop() {
   const el = document.getElementById('g-trash-top');
   if (!gState.trash.length) { el.innerHTML = '<div class="trash-placeholder">空</div>'; return; }
   const top = gState.trash[gState.trash.length - 1];
-  el.innerHTML = `<img class="trash-top-card" src="${imgUrl(top)}" alt="${top.name}" onerror="this.style.background='#1a2a44'" title="${top.name}">`;
+  el.innerHTML = `<div class="g-card-face" style="width:80px;height:112px;cursor:pointer;" onclick="showTrashModal()" title="${top.name}">${cardFaceHtml(top)}</div>`;
 }
 
 function renderFieldArea(elId, arr) {
@@ -908,17 +1006,13 @@ function makeGameCard(card, zone) {
   div.draggable = true;
   div.dataset.uid = card.uid;
   div.dataset.zone = zone;
-  div.innerHTML = `
-    <img src="${imgUrl(card)}" alt="${card.name}" onerror="this.style.background='#1a2a44'" title="${card.name}">
-    <button class="card-menu-btn">▼</button>`;
+  div.title = `${card.name} [${card.id || ''}]`;
+  div.innerHTML = `<div class="g-card-face">${cardFaceHtml(card)}</div><button class="card-menu-btn">▼</button>`;
   div.querySelector('.card-menu-btn').addEventListener('click', e => {
     e.stopPropagation();
     openCtxMenu(e, card, zone);
   });
-  div.querySelector('img').addEventListener('click', e => {
-    if (zone !== 'hand') return; // hand: show detail on click
-    showCardDetail(card);
-  });
+  div.querySelector('.g-card-face').addEventListener('click', () => showCardDetail(card));
   div.addEventListener('dragstart', e => {
     e.dataTransfer.setData('uid', card.uid);
     e.dataTransfer.setData('zone', zone);
@@ -1037,14 +1131,12 @@ function showTrashModal() {
   const el = document.getElementById('trash-modal-cards');
   el.innerHTML = '';
   [...gState.trash].reverse().forEach(card => {
-    const img = document.createElement('img');
-    img.src = imgUrl(card);
-    img.alt = card.name;
-    img.title = card.name;
-    img.style.cssText = 'width:60px;height:84px;object-fit:cover;border-radius:4px;border:1px solid var(--border);cursor:pointer;';
-    img.onerror = () => { img.style.background = '#1a2a44'; };
-    img.onclick = () => showCardDetail(card);
-    el.appendChild(img);
+    const tface = document.createElement('div');
+    tface.title = card.name;
+    tface.style.cssText = 'width:60px;height:84px;border-radius:4px;border:1px solid var(--border);cursor:pointer;display:flex;flex-direction:column;overflow:hidden;';
+    tface.innerHTML = cardFaceHtml(card);
+    tface.onclick = () => showCardDetail(card);
+    el.appendChild(tface);
   });
   document.getElementById('trash-modal').classList.add('open');
 }
@@ -1057,7 +1149,11 @@ document.getElementById('trash-modal').addEventListener('click', e => {
 // CARD DETAIL
 // ============================================================
 function showCardDetail(card) {
-  document.getElementById('cd-img').src = imgUrl(card);
+  const cdImg = document.getElementById('cd-img');
+  cdImg.style.cssText = 'display:flex;flex-direction:column;overflow:hidden;border-radius:6px;flex-shrink:0;width:120px;height:168px;';
+  const cdSegs = [card.color, card.color2].filter(Boolean);
+  const cdCols = (cdSegs.length ? cdSegs : ['Colorless']).map(c => `<div style="flex:1;background:${colorHex(c)}"></div>`).join('');
+  cdImg.innerHTML = `<div style="flex:1;display:flex;">${cdCols}</div><div style="background:rgba(0,0,0,0.8);padding:6px 8px;"><div style="font-size:13px;font-weight:bold;color:#aac8ff;">${cardTypeLabel(card)}</div><div style="font-size:11px;color:#ffe080;">${cardCostLabel(card)}</div><div style="font-size:10px;color:#e8eeff;">${card.name||''}</div></div>`;
   document.getElementById('cd-name').textContent = card.name || '';
   document.getElementById('cd-id').textContent = card.id || '';
   const stats = [

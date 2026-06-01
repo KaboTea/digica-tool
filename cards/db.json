@@ -1,1 +1,15 @@
-{ }
+{
+  "BT15-014": {
+    "id": "BT15-014",
+    "name": "ガルダモンACE",
+    "level": "完全体",
+    "type": "DIGIMON",
+    "color": "Red",
+    "color2": null,
+    "cost": 7,
+    "dp": null,
+    "effect": "オーバーフロー《-3》(バトルエリアかカードの下から、それ以外の範囲に送られる枚数、メモリー-3)",
+    "source_effect": null,
+    "trait": "完全体/ワクチン種/鳥人型"
+  }
+}

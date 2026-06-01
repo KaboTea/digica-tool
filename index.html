@@ -1766,11 +1766,12 @@ function split3x3(canvas) {
   const sx_scale = w / BASE_W;
   const sy_scale = h / BASE_H;
 
-  // 固定座標（3倍スケール基準）を実際のサイズにスケール
-  const col_abs = [89, 626, 1163, 1700].map(x => Math.round(x * sx_scale));
-  const row3_abs = [140, 890, 1640, 2390].map(y => Math.round(y * sy_scale)); // 3行
-  const row2_abs = [140, 1265, 2390].map(y => Math.round(y * sy_scale));      // 2行
-  const row1_abs = [140, 2390].map(y => Math.round(y * sy_scale));            // 1行
+  // 固定座標（3倍スケール・実測値）を実際のサイズにスケール
+  const col_abs   = [86, 624, 1161, 1699].map(x => Math.round(x * sx_scale));
+  const row3_abs  = [136, 890, 1641, 2386].map(y => Math.round(y * sy_scale)); // 3行
+  const row2_mid  = Math.round((136 + 2386) / 2);
+  const row2_abs  = [136, row2_mid, 2386].map(y => Math.round(y * sy_scale));  // 2行
+  const row1_abs  = [136, 2386].map(y => Math.round(y * sy_scale));            // 1行
 
   // 行数を縦横比で自動判定
   const ratio = h / w;

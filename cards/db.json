@@ -3,7 +3,7 @@
     "id": "BT21-004",
     "name": "コロモン",
     "name_en": "",
-    "level": "Lv.2",
+    "level": 2,
     "type": "DIGITAMA",
     "color": "Yellow",
     "color2": null,
@@ -12,8 +12,9 @@
     "effect": "",
     "effect_en": "",
     "source_effect": "【自分のターン】【ターンに1回】黄/赤の自分のデジモンがレストしたとき、①ドロー。",
-    "trait": "幼年期/レッサー型/ビーロー",
-    "rarity": null
+    "trait": "幼年期/レッサー型/ヒーロー",
+    "rarity": null,
+    "ghImgUrl": "https://raw.githubusercontent.com/KaboTea/digica-tool/main/cards/BT21-004.jpg"
   },
   "BT13-008": {
     "id": "BT13-008",

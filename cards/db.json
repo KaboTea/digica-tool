@@ -1,0 +1,18 @@
+{
+  "BT21-004": {
+    "id": "BT21-004",
+    "name": "コロモン",
+    "name_en": "Koromon",
+    "level": 2,
+    "type": "DIGIMON",
+    "color": "Yellow",
+    "color2": null,
+    "cost": 3,
+    "dp": 1000,
+    "effect": "【進化元効果】自分のターン【ターンに1回】黄/赤の自分のテイマーがレストしたとき、≪1ドロー≫。",
+    "effect_en": "Inherited Effect [Your Turn] [Once Per Turn] When any of your yellow or red Tamers suspend, ＜Draw 1＞ (Draw 1 card from your deck.)",
+    "source_effect": "【進化元効果】自分のターン【ターンに1回】黄/赤の自分のテイマーがレストしたとき、≪1ドロー≫。",
+    "trait": "幼年期/レッサー/ビーロー",
+    "rarity": "C"
+  }
+}

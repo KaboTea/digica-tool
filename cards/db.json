@@ -30,5 +30,21 @@
     "source_effect": "【自分のターン】ターン1赤か黒の自分のテイマーがいる間、このデジモンはセキュリティーアタック+1する。",
     "trait": "爬虫類型/ワクチン種",
     "rarity": "U"
+  },
+  "BT12-034": {
+    "id": "BT12-034",
+    "name": "アグモン",
+    "name_en": "Agumon",
+    "level": 3,
+    "type": "DIGIMON",
+    "color": "Red",
+    "color2": "Red",
+    "cost": 3,
+    "dp": 2000,
+    "effect": "【自分のターン】ゲーム中1度、自分のデジモンの上から1枚オープンする。その中の名称に「グレイモン」を含むディグモンカード1枚か「天井大1枚ずつを手札に加える。残りのカードはデッキの下に戻す。",
+    "effect_en": "[On Play] Reveal the top 4 cards of your deck. Add 1 Digimon card with [Greymon] in its name and 1 [Marcus Damon] among them to your hand. Place the rest at the bottom of your deck in any order.",
+    "source_effect": "【自分のターン】ターン1回 お互いの自分のアタックがブレスしたとき、このターンの間、相手のデジモン1体をDP-2000。",
+    "trait": "成長期/ワクチン種/爬虫類型",
+    "rarity": "C"
   }
 }

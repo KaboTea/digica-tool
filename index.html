@@ -818,11 +818,11 @@ function cardFaceHtml(card) {
 function jaLabel(card) {
   const parts = [];
   if (card.type)  parts.push(jaType(card.type));
-  const c = [card.color, card.color2].filter(Boolean).map(jaColor).join('/');
-  if (c) parts.push(c);
-  if (card.level) parts.push(`Lv.${card.level}`);
-  if (card.dp)    parts.push(`${Number(card.dp).toLocaleString()}DP`);
-  return parts.join(' · ');
+  const colors = [card.color, card.color2].filter(Boolean);
+  if (colors.length) parts.push(colors.map(jaColor).join('/'));
+  if (card.level != null) parts.push(`Lv.${card.level}`);
+  if (card.dp    != null) parts.push(`${Number(card.dp).toLocaleString()}DP`);
+  return parts.join(' · ') || '—';
 }
 
 // 検索結果のカード名表示: 日本語優先
@@ -857,6 +857,11 @@ function searchLocalDb(q) {
 }
 
 async function searchCards(q) {
+  // DBが未ロードなら先にロード
+  if (!cardDbCache) {
+    document.getElementById('search-results').innerHTML = '<div class="search-loading">DBロード中…</div>';
+    await loadCardDb();
+  }
   // まずローカルDBを検索
   const localResults = searchLocalDb(q);
   if (localResults.length > 0) {
@@ -906,7 +911,7 @@ function renderSearchResults(cards, fromLocal=false) {
     div.innerHTML = `
       ${thumbHtml}
       <div class="result-info">
-        <div class="result-name">${displayName(card)}</div>
+        <div class="result-name">${card.name || card.name_en || ''}</div>
         ${subName}
         <div class="result-id">${card.id}</div>
         <div class="result-meta">${jaLabel(card)}</div>
@@ -1342,9 +1347,15 @@ async function showCardDetail(card) {
 
   effectEl.textContent = '翻訳中…';
   try {
+    const cfg2 = loadSettings();
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': cfg2.anthropicKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 800,
@@ -1447,6 +1458,10 @@ async function processPDF(file) {
     status.textContent = `エラー: ${e.message}`;
     status.style.color = 'var(--red)';
     console.error(e);
+    if (e.message.includes('APIキー')) {
+      // 設定モーダルを自動で開く
+      openSettings();
+    }
   }
 }
 
@@ -1549,9 +1564,16 @@ function split3x3(canvas) {
 
 // Claude APIでカード情報読み取り
 async function readCardWithClaude(b64) {
+  const cfg = loadSettings();
+  if (!cfg.anthropicKey) throw new Error('Anthropic APIキーが設定されていません。⚙️設定から入力してください');
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': cfg.anthropicKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 600,
@@ -1598,14 +1620,16 @@ const GH_REPO = 'digica-tool';
 
 function loadSettings() {
   return {
-    token: localStorage.getItem('ghToken') || '',
-    user:  GH_USER,
-    repo:  GH_REPO,
+    token:        localStorage.getItem('ghToken')        || '',
+    anthropicKey: localStorage.getItem('anthropicKey')   || '',
+    user:         GH_USER,
+    repo:         GH_REPO,
   };
 }
 function openSettings() {
   const cfg = loadSettings();
-  document.getElementById('cfg-token').value = cfg.token;
+  document.getElementById('cfg-token').value     = cfg.token;
+  document.getElementById('cfg-anthropic').value = cfg.anthropicKey;
   document.getElementById('cfg-status').textContent = '';
   document.getElementById('settings-modal').classList.add('open');
 }
@@ -1620,6 +1644,8 @@ async function saveSettings() {
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     localStorage.setItem('ghToken', token);
+    const anthropicKey = document.getElementById('cfg-anthropic').value.trim();
+    if (anthropicKey) localStorage.setItem('anthropicKey', anthropicKey);
     status.textContent = '✓ 接続成功！設定を保存しました';
     status.style.color = 'var(--green)';
   } catch(e) {
@@ -1667,10 +1693,16 @@ async function ghGetFile(path) {
 let cardDbCache = null;
 async function loadCardDb() {
   if (cardDbCache) return cardDbCache;
-  const file = await ghGetFile('cards/db.json');
-  if (file) {
-    cardDbCache = JSON.parse(file.content);
-  } else {
+  try {
+    // Token不要でpublic URLから直接fetch（キャッシュ回避のためtimestamp付き）
+    const url = `https://raw.githubusercontent.com/${GH_USER}/${GH_REPO}/main/cards/db.json?t=${Date.now()}`;
+    const res = await fetch(url);
+    if (res.ok) {
+      cardDbCache = await res.json();
+    } else {
+      cardDbCache = {};
+    }
+  } catch(e) {
     cardDbCache = {};
   }
   return cardDbCache;
@@ -1729,9 +1761,9 @@ async function saveCardToGitHub(cardInfo, imageB64) {
 
 // GitHubのカード画像URLを返す
 function ghImgUrl(cardId) {
-  const cfg = loadSettings();
-  if (!cfg.user || !cfg.repo) return null;
-  return `https://raw.githubusercontent.com/${cfg.user}/${cfg.repo}/main/cards/${cardId}.jpg`;
+  if (!cardId) return null;
+  // Token不要・常に固定リポジトリを参照（読み取りはpublic）
+  return `https://raw.githubusercontent.com/${GH_USER}/${GH_REPO}/main/cards/${cardId}.jpg`;
 }
 
 // ============================================================
@@ -1748,6 +1780,21 @@ function shuffle(arr) {
 function showLog(msg) {
   document.getElementById('game-log').textContent = '> ' + msg;
 }
+
+// ===== 起動時: Token不要でDBを全員がロード =====
+(async () => {
+  try {
+    await loadCardDb();
+    const count = Object.keys(cardDbCache || {}).length;
+    console.log('カードDB:', count + '枚');
+    const el = document.getElementById('search-results');
+    if (el && count > 0) {
+      el.innerHTML = `<div class="search-loading" style="color:var(--green);">✓ DB: ${count}枚登録済み　日本語で検索できます</div>`;
+    }
+  } catch(e) {
+    console.warn('DB読み込み失敗:', e);
+  }
+})();
 </script>
 
 <!-- 設定モーダル -->
@@ -1759,7 +1806,13 @@ function showLog(msg) {
         <div style="font-size:11px;color:var(--accent2);margin-bottom:4px;">GitHub Personal Access Token</div>
         <input id="cfg-token" type="password" placeholder="ghp_xxxxxxxxxxxx"
           style="width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:6px;padding:7px 10px;font-size:12px;outline:none;">
-        <div style="font-size:10px;color:var(--text2);margin-top:3px;">repo スコープのTokenを入力してください</div>
+        <div style="font-size:10px;color:var(--text2);margin-top:3px;">repo スコープのToken（PDF登録・書き込み用）</div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--accent2);margin-bottom:4px;">Anthropic API Key</div>
+        <input id="cfg-anthropic" type="password" placeholder="sk-ant-xxxxxxxxxxxx"
+          style="width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:6px;padding:7px 10px;font-size:12px;outline:none;">
+        <div style="font-size:10px;color:var(--text2);margin-top:3px;">PDF登録時のカード読み取りに使用（PDF登録する人のみ必要）</div>
       </div>
       <div style="font-size:10px;color:var(--text2);background:var(--bg3);border-radius:5px;padding:6px 8px;">
         リポジトリ: <span style="color:var(--accent2);">KaboTea/digica-tool</span>（固定）

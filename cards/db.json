@@ -14,5 +14,21 @@
     "source_effect": null,
     "trait": "幼年期/レッサー/ヒーロー",
     "rarity": null
+  },
+  "EX4-005": {
+    "id": "EX4-005",
+    "name": "アグモン",
+    "name_en": "",
+    "level": 3,
+    "type": "DIGIMON",
+    "color": "Red",
+    "color2": null,
+    "cost": 3,
+    "dp": 2000,
+    "effect": "【自分のターン】ターン1回 赤か黄の自分のテイマーが1人いるメモリ+1。",
+    "effect_en": "",
+    "source_effect": "【自分のターン】ターン1回 赤か黄の自分のテイマーがいるとき、このデジモンをセキュリティに移動できる。",
+    "trait": "ワクチン種/爬虫類型",
+    "rarity": null
   }
 }

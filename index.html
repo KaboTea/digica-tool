@@ -681,7 +681,7 @@ document.getElementById('search-input').addEventListener('input', function() {
 
 async function searchCards(q) {
   try {
-    const url = `https://digimoncard.io/api-public/search.php?n=${encodeURIComponent(q)}&series=Digimon+Card+Game&sort=id&sortdirection=ASC&num=20`;
+    const url = `https://digimoncard.io/api-public/search?n=${encodeURIComponent(q)}&series=Digimon+Card+Game&sort=id&sortdirection=ASC&num=20`;
     const res = await fetch(url);
     if (!res.ok) throw new Error('API error');
     const data = await res.json();

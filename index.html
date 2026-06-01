@@ -1817,31 +1817,46 @@ async function readCardWithClaude(b64Full, b64Effect) {
           { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: b64Full } },
           { type: 'text', text: '↑カード全体画像。↓効果テキストエリアの拡大画像（こちらを優先してテキストを読み取ってください）' },
           { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: b64Effect } },
-          { type: 'text', text: `デジモンカードゲームのカード画像です。以下のルールに従いJSON形式で情報を抽出してください。
+          { type: 'text', text: `デジモンカードゲームのカード画像（全体＋効果エリア拡大）です。以下のルールに従いJSONで情報を抽出してください。
 
-【カード種別の見分け方】
-- カード左上または上部に「DIGITAMA」と書かれていればtype="DIGITAMA"
-- 「DIGIMON」ならtype="DIGIMON"
-- 「TAMER」ならtype="TAMER"
-- 「OPTION」ならtype="OPTION"
-- 「DIGIMON / OPTION」のように両方書かれていればtype="OPTION"（デュアルカード）
+【ルビ・フリガナは必ず無視すること】
+カードの効果テキストには漢字の上に小さくふりがなが付いています。これらの小文字（じぶん・ターン・かい・あか・き など）は本文ではないので絶対に含めないこと。
 
-【各タイプのルール（存在しない項目はnullにすること）】
-- DIGITAMA: level=タマゴのLv(通常2), cost=null, dp=null, effect=null, source_effect=進化元効果テキスト
-- DIGIMON:  level=Lv数値, cost=登場コスト数値, dp=DP数値（例:2000,5000,12000）, effect=テキスト, source_effect=進化元効果
-- TAMER:    level=null, dp=null, cost=登場コスト数値, effect=テキスト, source_effect=null
-- OPTION:   level=null, dp=null, cost=使用コスト数値, effect=テキスト, source_effect=null
+【カード種別】
+上部の表記で判断:
+- DIGITAMA → type="DIGITAMA"（タマゴカード）
+- DIGIMON → type="DIGIMON"
+- TAMER → type="TAMER"
+- OPTION → type="OPTION"
+- DIGIMON / OPTION → type="OPTION"（デュアルカード）
+
+【各タイプの存在するフィールド】
+- DIGITAMA: level=Lv数値, cost=null, dp=null, effect=null, source_effect=進化元効果のみ
+- DIGIMON:  level=Lv数値, cost=登場コスト（左上の大きい数字）, dp=DP数値（右上 例:2000/5000/12000/15000）, effect=本体効果, source_effect=進化元効果
+- TAMER:    level=null, dp=null, cost=登場コスト, effect=本体効果, source_effect=null
+- OPTION:   level=null, dp=null, cost=使用コスト, effect=本体効果, source_effect=null
+※存在しないフィールドは必ずnullにすること。絶対に存在しない値を作らないこと。
+
+【効果テキストの読み取りルール】
+- 【進化時】【自分のターン】【登場時】【攻撃時】【消滅時】【ターン1回】【オールターン】【カウンター】【ストレイド】などのタグをそのまま含める
+- 《セキュリティアタック+1》《アタック》《ラッシュ》《ブロッカー》などの《》タグもそのまま含める
+- 〈バースト進化〉〈リカバリー+1〉などの特殊キーワードもそのまま
+- Aceカードの「オーバーフロー(-5)」などの記載もそのまま含める
+- 効果が複数ある場合は改行（\n）で区切る
+- 進化元効果（カード下部の別枠）はsource_effectに入れる
 
 【色の判断】
-カードの枠・背景色で判断: 赤=Red, 青=Blue, 黄=Yellow, 緑=Green, 黒=Black, 紫=Purple, 白=White
+カード枠・背景の色: 赤=Red, 青=Blue, 黄=Yellow, 緑=Green, 黒=Black, 紫=Purple, 白=White
+2色カードはcolor2にも入れる
 
 【その他】
-- カードIDは右下（例: BT21-004, EX4-005, P-037, AD1-016）
-- traitは「幼年期」「成長期」「成熟期」「完全体」「究極体」など（「/」区切りで複数可）
-- SAMPLEスタンプがあっても読み取れる情報は読み取る
+- カードIDは右下（例: BT21-004, EX4-005, P-037, AD1-016, BT17-041）
+- traitは特徴欄（例: 成長期、ワクチン種、恐竜型）を「/」区切りで
+- SAMPLEスタンプがあっても読み取れる情報は読む
+- Aceカードはname末尾に「ACE」を含む場合がある（例: シャイングレイモン:バーストモードACE）
 
-JSON形式（他のテキスト一切不要）:
-{"id":"","name":"","level":null,"type":"","color":"","color2":null,"cost":null,"dp":null,"effect":null,"source_effect":null,"trait":""}` }
+JSONのみ返すこと（説明文・コードブロック不要）:
+{"id":"","name":"","level":null,"type":"","color":"","color2":null,"cost":null,"dp":null,"effect":"","source_effect":null,"trait":""}` }
         ]
       }]
     })

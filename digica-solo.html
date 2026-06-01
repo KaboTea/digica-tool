@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>デジカ ソロ練習</title>
+<style>
+:root {
+  --bg: #080d1a;
+  --bg2: #0e1628;
+  --bg3: #141e34;
+  --border: #1e3050;
+  --border2: #2a4a7a;
+  --accent: #4a9eff;
+  --accent2: #7eb8f7;
+  --text: #d0ddf5;
+  --text2: #7090b0;
+  --red: #e05050;
+  --green: #40c080;
+  --yellow: #e0c040;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; font-size: 13px; min-height: 100vh; }
+
+/* ========== SCREENS ========== */
+.screen { display: none; }
+.screen.active { display: flex; }
+
+/* ========== BUILDER SCREEN ========== */
+#builder-screen {
+  flex-direction: row;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* LEFT: search panel */
+.search-panel {
+  width: 280px;
+  min-width: 240px;
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.panel-head {
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.panel-head h2 { font-size: 14px; color: var(--accent2); margin-bottom: 8px; letter-spacing: 1px; }
+.search-input {
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: 12px;
+  outline: none;
+}
+.search-input:focus { border-color: var(--accent); }
+.search-hint { font-size: 10px; color: var(--text2); margin-top: 5px; }
+
+.search-results {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.search-loading { color: var(--text2); font-size: 11px; padding: 10px; text-align: center; }
+
+/* card search result item */
+.result-card {
+  display: flex;
+  gap: 8px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  align-items: flex-start;
+}
+.result-card:hover { border-color: var(--accent); background: #1a2a44; }
+.result-thumb {
+  width: 44px;
+  height: 62px;
+  object-fit: cover;
+  border-radius: 3px;
+  background: var(--bg);
+  flex-shrink: 0;
+}
+.result-info { flex: 1; min-width: 0; }
+.result-name { font-size: 12px; font-weight: bold; color: var(--text); line-height: 1.3; }
+.result-id { font-size: 10px; color: var(--accent2); margin-top: 2px; }
+.result-meta { font-size: 10px; color: var(--text2); margin-top: 2px; line-height: 1.4; }
+.result-add-btn {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  margin-top: 4px;
+  white-space: nowrap;
+}
+.result-add-btn:hover { background: #6ab0ff; }
+
+/* RIGHT: deck list panel */
+.deck-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.deck-panel-head {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg2);
+}
+.deck-panel-head h2 { font-size: 14px; color: var(--accent2); flex: 1; }
+.deck-tabs { display: flex; gap: 4px; }
+.deck-tab {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  border-radius: 5px;
+  padding: 4px 12px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.deck-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn-start {
+  background: var(--green);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 18px;
+  font-size: 13px;
+  cursor: pointer;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+.btn-start:hover { background: #50d090; }
+.btn-start:disabled { background: #2a4a3a; color: #507050; cursor: not-allowed; }
+
+.deck-body { flex: 1; overflow-y: auto; padding: 10px; }
+.deck-section { margin-bottom: 16px; }
+.deck-section-label {
+  font-size: 10px;
+  color: var(--text2);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+.deck-cards { display: flex; flex-wrap: wrap; gap: 6px; }
+.deck-card-item {
+  position: relative;
+  width: 60px;
+  cursor: pointer;
+}
+.deck-card-item img {
+  width: 60px;
+  height: 84px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  display: block;
+}
+.deck-card-count {
+  position: absolute;
+  bottom: 3px;
+  right: 3px;
+  background: rgba(0,0,0,0.8);
+  color: var(--accent2);
+  font-size: 12px;
+  font-weight: bold;
+  padding: 1px 5px;
+  border-radius: 3px;
+  line-height: 1.4;
+}
+.deck-card-remove {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background: var(--red);
+  color: #fff;
+  border: none;
+  border-radius: 3px;
+  font-size: 10px;
+  padding: 1px 4px;
+  cursor: pointer;
+  display: none;
+}
+.deck-card-item:hover .deck-card-remove { display: block; }
+.deck-empty { color: var(--text2); font-size: 11px; padding: 10px 0; }
+
+/* count bar */
+.count-bar {
+  padding: 8px 16px;
+  background: var(--bg2);
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 16px;
+  font-size: 11px;
+  color: var(--text2);
+}
+.count-ok { color: var(--green); }
+.count-over { color: var(--red); }
+
+/* ========== GAME SCREEN ========== */
+#game-screen {
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.game-topbar {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.game-title { font-size: 13px; color: var(--accent2); flex: 1; }
+.g-btn {
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  color: var(--text2);
+  border-radius: 5px;
+  padding: 4px 12px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.g-btn:hover { background: #1a2a4a; color: var(--text); }
+.g-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+.game-field {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 90px 1fr 130px;
+  grid-template-rows: 1fr auto;
+  gap: 6px;
+  padding: 6px;
+  overflow: hidden;
+}
+
+/* zones */
+.zone {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow: hidden;
+}
+.zone-label {
+  font-size: 9px;
+  color: var(--text2);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+/* left col */
+.left-col { display: flex; flex-direction: column; gap: 6px; grid-row: 1 / 3; }
+
+.deck-stack {
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 80px;
+  transition: background 0.15s;
+}
+.deck-stack:hover { background: var(--bg3); }
+.deck-stack-count { font-size: 26px; font-weight: bold; color: var(--accent); line-height: 1; }
+.deck-stack-sub { font-size: 10px; color: var(--text2); margin-top: 2px; }
+
+.ikusei-field {
+  flex: 1;
+  overflow-y: auto;
+}
+.field-drop {
+  min-height: 50px;
+  background: #0a1220;
+  border: 1px dashed var(--border);
+  border-radius: 5px;
+  padding: 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-content: flex-start;
+}
+.field-drop.dragover { border-color: var(--accent); background: #0f1e38; }
+
+/* center: battle area */
+.center-col { display: flex; flex-direction: column; gap: 6px; }
+.battle-zone { flex: 1; overflow-y: auto; }
+
+/* right col */
+.right-col { display: flex; flex-direction: column; gap: 6px; grid-row: 1 / 3; }
+
+.security-zone { flex-shrink: 0; }
+.security-pips { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
+.sec-pip {
+  width: 22px;
+  height: 30px;
+  background: #1a3a6a;
+  border: 1px solid var(--border2);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.sec-pip:hover { background: var(--red); border-color: #e07070; }
+
+.trash-zone { flex-shrink: 0; cursor: pointer; }
+.trash-zone:hover { background: var(--bg3); }
+.trash-top-card {
+  width: 100%;
+  aspect-ratio: 5/7;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  margin-top: 4px;
+  display: block;
+}
+.trash-placeholder { font-size: 10px; color: var(--text2); text-align: center; padding: 10px 0; }
+
+/* hand area */
+.hand-area { grid-column: 2 / 3; }
+.hand-cards { display: flex; flex-wrap: wrap; gap: 5px; overflow-y: auto; max-height: 110px; }
+
+/* game card chip */
+.g-card {
+  position: relative;
+  cursor: grab;
+  display: inline-block;
+}
+.g-card img {
+  width: 52px;
+  height: 73px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  display: block;
+  transition: transform 0.1s;
+  user-select: none;
+  pointer-events: none;
+}
+.g-card.tapped img { transform: rotate(90deg); margin: 10px 0; }
+.g-card:hover img { border-color: var(--accent); }
+.g-card .card-menu-btn {
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.85);
+  border: none;
+  color: var(--accent2);
+  border-radius: 3px;
+  font-size: 9px;
+  padding: 2px 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  display: none;
+}
+.g-card:hover .card-menu-btn { display: block; }
+
+/* log */
+.game-log {
+  flex-shrink: 0;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  padding: 4px 12px;
+  font-size: 10px;
+  color: var(--text2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* context menu */
+.ctx {
+  display: none;
+  position: fixed;
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 7px;
+  padding: 5px;
+  z-index: 500;
+  min-width: 150px;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.7);
+}
+.ctx.open { display: block; }
+.ctx-item {
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text);
+}
+.ctx-item:hover { background: #1a3a6a; }
+.ctx-sep { border-top: 1px solid var(--border); margin: 3px 0; }
+
+/* modal */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.8);
+  z-index: 300;
+  align-items: center;
+  justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  padding: 16px;
+  width: 360px;
+  max-height: 75vh;
+  overflow-y: auto;
+}
+.modal h3 { color: var(--accent2); font-size: 13px; margin-bottom: 10px; }
+.modal-cards { display: flex; flex-wrap: wrap; gap: 6px; }
+.modal-close {
+  margin-top: 12px;
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--accent2);
+  border-radius: 6px;
+  padding: 7px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+/* card detail tooltip */
+.card-detail-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.7);
+}
+.card-detail-overlay.open { display: flex; }
+.card-detail {
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  gap: 14px;
+  max-width: 520px;
+  width: 90vw;
+}
+.card-detail img { width: 120px; height: 168px; object-fit: cover; border-radius: 6px; flex-shrink: 0; }
+.card-detail-info { flex: 1; overflow-y: auto; }
+.cd-name { font-size: 15px; font-weight: bold; color: var(--text); }
+.cd-id { font-size: 11px; color: var(--accent2); margin-top: 2px; }
+.cd-stats { font-size: 11px; color: var(--text2); margin-top: 6px; line-height: 1.8; }
+.cd-effect { font-size: 11px; color: var(--text); margin-top: 8px; line-height: 1.6; white-space: pre-wrap; }
+.cd-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  border-radius: 5px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+/* scrollbars */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #2a3a5a; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- ========== BUILDER SCREEN ========== -->
+<div id="builder-screen" class="screen active">
+  <!-- Search panel -->
+  <div class="search-panel">
+    <div class="panel-head">
+      <h2>⬡ カード検索</h2>
+      <input class="search-input" id="search-input" placeholder="カード名を入力（英語）例: Agumon" autocomplete="off">
+      <div class="search-hint">※ digimoncard.io APIを使用（英語名で検索）</div>
+    </div>
+    <div class="search-results" id="search-results">
+      <div class="search-loading">カード名を入力して検索</div>
+    </div>
+  </div>
+
+  <!-- Deck panel -->
+  <div class="deck-panel">
+    <div class="deck-panel-head">
+      <h2>デッキ構築</h2>
+      <div class="deck-tabs">
+        <button class="deck-tab active" onclick="switchTab('main')">メイン <span id="main-tab-count">0</span>/50</button>
+        <button class="deck-tab" onclick="switchTab('egg')">育成 <span id="egg-tab-count">0</span>/5</button>
+      </div>
+      <button class="btn-start" id="start-btn" onclick="startGame()" disabled>▶ 練習開始</button>
+    </div>
+    <div class="deck-body">
+      <div id="deck-main-view">
+        <div class="deck-section">
+          <div class="deck-section-label">メインデッキ</div>
+          <div class="deck-cards" id="deck-main-cards">
+            <div class="deck-empty">← 左のパネルからカードを追加</div>
+          </div>
+        </div>
+      </div>
+      <div id="deck-egg-view" style="display:none">
+        <div class="deck-section">
+          <div class="deck-section-label">育成デッキ（タマゴ）</div>
+          <div class="deck-cards" id="deck-egg-cards">
+            <div class="deck-empty">← 左のパネルからカードを追加</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="count-bar">
+      <span>メイン: <span id="count-main">0</span>/50</span>
+      <span>育成: <span id="count-egg">0</span>/5</span>
+      <span id="count-status">カードを追加してください</span>
+    </div>
+  </div>
+</div>
+
+<!-- ========== GAME SCREEN ========== -->
+<div id="game-screen" class="screen">
+  <div class="game-topbar">
+    <span class="game-title">⬡ デジカ ソロ練習</span>
+    <button class="g-btn" onclick="drawCard()">ドロー</button>
+    <button class="g-btn" onclick="shuffleMainDeck()">シャッフル</button>
+    <button class="g-btn primary" onclick="showTrashModal()">トラッシュ確認</button>
+    <button class="g-btn" onclick="backToBuilder()">← デッキ編集</button>
+  </div>
+
+  <div class="game-field">
+    <!-- Left col: 育成デッキ + 育成エリア -->
+    <div class="left-col">
+      <div class="zone deck-stack" onclick="drawEgg()" title="クリックで育成エリアへ">
+        <span class="zone-label">育成デッキ</span>
+        <div class="deck-stack-count" id="g-egg-deck-count">0</div>
+        <div class="deck-stack-sub">枚　クリックで引く</div>
+      </div>
+      <div class="zone ikusei-field">
+        <span class="zone-label">育成エリア</span>
+        <div class="field-drop" id="g-ikusei-area"
+          ondragover="onDragOver(event)"
+          ondrop="onDrop(event,'ikusei')">
+        </div>
+      </div>
+    </div>
+
+    <!-- Center: battle -->
+    <div class="center-col">
+      <div class="zone battle-zone">
+        <span class="zone-label">バトルエリア</span>
+        <div class="field-drop" id="g-battle-area"
+          ondragover="onDragOver(event)"
+          ondrop="onDrop(event,'battle')">
+        </div>
+      </div>
+    </div>
+
+    <!-- Right col: メインデッキ + セキュリティ + トラッシュ -->
+    <div class="right-col">
+      <div class="zone deck-stack" onclick="drawCard()" title="クリックでドロー">
+        <span class="zone-label">メインデッキ</span>
+        <div class="deck-stack-count" id="g-main-deck-count">0</div>
+        <div class="deck-stack-sub">枚　クリックでドロー</div>
+      </div>
+      <div class="zone security-zone">
+        <span class="zone-label">セキュリティ <span id="g-sec-count">0</span>枚</span>
+        <div class="security-pips" id="g-sec-pips"></div>
+      </div>
+      <div class="zone trash-zone" onclick="showTrashModal()">
+        <span class="zone-label">トラッシュ <span id="g-trash-count">0</span>枚</span>
+        <div id="g-trash-top"></div>
+      </div>
+    </div>
+
+    <!-- Hand -->
+    <div class="zone hand-area">
+      <span class="zone-label">手札 <span id="g-hand-count">0</span>枚</span>
+      <div class="hand-cards" id="g-hand-area"></div>
+    </div>
+  </div>
+
+  <div class="game-log" id="game-log">ゲーム開始</div>
+</div>
+
+<!-- Trash modal -->
+<div class="modal-overlay" id="trash-modal">
+  <div class="modal">
+    <h3>🗑 トラッシュ一覧</h3>
+    <div class="modal-cards" id="trash-modal-cards"></div>
+    <button class="modal-close" onclick="closeModal('trash-modal')">閉じる</button>
+  </div>
+</div>
+
+<!-- Card detail overlay -->
+<div class="card-detail-overlay" id="card-detail-overlay" onclick="closeCardDetail()">
+  <div class="card-detail" onclick="event.stopPropagation()">
+    <img id="cd-img" src="" alt="">
+    <div class="card-detail-info">
+      <div class="cd-name" id="cd-name"></div>
+      <div class="cd-id" id="cd-id"></div>
+      <div class="cd-stats" id="cd-stats"></div>
+      <div class="cd-effect" id="cd-effect"></div>
+    </div>
+    <button class="cd-close" onclick="closeCardDetail()">✕</button>
+  </div>
+</div>
+
+<!-- Context menu -->
+<div class="ctx" id="ctx"></div>
+
+<script>
+// ============================================================
+// DATA
+// ============================================================
+let deckMain = [];   // [{cardData, count}]
+let deckEgg  = [];
+let activeTab = 'main';
+
+let gState = {
+  mainDeck: [],
+  eggDeck: [],
+  hand: [],
+  security: [],
+  trash: [],
+  battle: [],
+  ikusei: [],
+};
+let uid = 0;
+const newUid = () => ++uid;
+
+// card image url
+function imgUrl(card) {
+  // digimoncard.io uses /images/cards/{id}.jpg pattern
+  return `https://digimoncard.io/images/cards/${card.id}.jpg`;
+}
+
+// ============================================================
+// SEARCH
+// ============================================================
+let searchTimer = null;
+document.getElementById('search-input').addEventListener('input', function() {
+  clearTimeout(searchTimer);
+  const q = this.value.trim();
+  if (q.length < 2) {
+    document.getElementById('search-results').innerHTML = '<div class="search-loading">2文字以上入力してください</div>';
+    return;
+  }
+  document.getElementById('search-results').innerHTML = '<div class="search-loading">検索中…</div>';
+  searchTimer = setTimeout(() => searchCards(q), 400);
+});
+
+async function searchCards(q) {
+  try {
+    const url = `https://digimoncard.io/api-public/search.php?n=${encodeURIComponent(q)}&series=Digimon+Card+Game&sort=id&sortdirection=ASC&num=20`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('API error');
+    const data = await res.json();
+    // dedupe by id
+    const seen = new Set();
+    const unique = data.filter(c => {
+      if (seen.has(c.id)) return false;
+      seen.add(c.id);
+      return true;
+    });
+    renderSearchResults(unique);
+  } catch(e) {
+    document.getElementById('search-results').innerHTML = '<div class="search-loading">検索失敗。ネットワークを確認してください</div>';
+  }
+}
+
+function renderSearchResults(cards) {
+  const el = document.getElementById('search-results');
+  if (!cards.length) { el.innerHTML = '<div class="search-loading">該当なし</div>'; return; }
+  el.innerHTML = '';
+  cards.forEach(card => {
+    const div = document.createElement('div');
+    div.className = 'result-card';
+    const colorTag = card.color ? `${card.color}` : '';
+    const lvTag = card.level ? `Lv.${card.level}` : '';
+    const dpTag = card.dp ? `${card.dp.toLocaleString()}DP` : '';
+    div.innerHTML = `
+      <img class="result-thumb" src="${imgUrl(card)}" alt="${card.name}" onerror="this.style.background='#1a2a44'">
+      <div class="result-info">
+        <div class="result-name">${card.name}</div>
+        <div class="result-id">${card.id}</div>
+        <div class="result-meta">${[card.type, colorTag, lvTag, dpTag].filter(Boolean).join(' · ')}</div>
+        <button class="result-add-btn" onclick="addToDeck(event)">+ デッキに追加</button>
+      </div>`;
+    div.dataset.card = JSON.stringify(card);
+    div.querySelector('.result-add-btn').dataset.card = JSON.stringify(card);
+    div.addEventListener('click', e => {
+      if (e.target.classList.contains('result-add-btn')) return;
+      showCardDetail(card);
+    });
+    el.appendChild(div);
+  });
+}
+
+function addToDeck(e) {
+  e.stopPropagation();
+  const card = JSON.parse(e.target.dataset.card);
+  const isEgg = card.type === 'Digi-Egg';
+  const target = isEgg ? deckEgg : deckMain;
+  const limit = isEgg ? 5 : 50;
+  const perCard = 4;
+  const total = target.reduce((s, c) => s + c.count, 0);
+  const existing = target.find(c => c.id === card.id);
+  if (existing) {
+    if (existing.count >= perCard) { showLog(`${card.name} は既に${perCard}枚入っています`); return; }
+    existing.count++;
+  } else {
+    if (total >= limit) { showLog(`${isEgg ? '育成' : 'メイン'}デッキが上限（${limit}枚）です`); return; }
+    target.push({ id: card.id, name: card.name, count: 1, cardData: card });
+  }
+  // switch to correct tab
+  if (isEgg && activeTab !== 'egg') switchTab('egg');
+  if (!isEgg && activeTab !== 'main') switchTab('main');
+  renderDeckList();
+  showLog(`追加: ${card.name} (${card.id})`);
+}
+
+// ============================================================
+// DECK LIST
+// ============================================================
+function switchTab(tab) {
+  activeTab = tab;
+  document.querySelectorAll('.deck-tab').forEach((t, i) => {
+    t.classList.toggle('active', (i === 0 && tab === 'main') || (i === 1 && tab === 'egg'));
+  });
+  document.getElementById('deck-main-view').style.display = tab === 'main' ? '' : 'none';
+  document.getElementById('deck-egg-view').style.display  = tab === 'egg'  ? '' : 'none';
+}
+
+function renderDeckList() {
+  renderDeckSection(deckMain, 'deck-main-cards', 'main');
+  renderDeckSection(deckEgg,  'deck-egg-cards',  'egg');
+  const mc = deckMain.reduce((s, c) => s + c.count, 0);
+  const ec = deckEgg.reduce((s, c)  => s + c.count, 0);
+  document.getElementById('count-main').textContent = mc;
+  document.getElementById('count-egg').textContent  = ec;
+  document.getElementById('main-tab-count').textContent = mc;
+  document.getElementById('egg-tab-count').textContent  = ec;
+  const ok = mc === 50;
+  document.getElementById('count-status').textContent = ok ? '✓ 準備完了！' : `メイン ${50 - mc}枚不足`;
+  document.getElementById('count-status').style.color = ok ? 'var(--green)' : 'var(--text2)';
+  document.getElementById('start-btn').disabled = mc === 0;
+}
+
+function renderDeckSection(deck, elId, which) {
+  const el = document.getElementById(elId);
+  if (!deck.length) { el.innerHTML = `<div class="deck-empty">← 左のパネルからカードを追加</div>`; return; }
+  el.innerHTML = '';
+  deck.forEach(entry => {
+    const div = document.createElement('div');
+    div.className = 'deck-card-item';
+    div.innerHTML = `
+      <img src="${imgUrl(entry.cardData)}" alt="${entry.name}" onerror="this.style.background='#1a2a44'" title="${entry.name}&#10;${entry.id}">
+      <div class="deck-card-count">${entry.count}</div>
+      <button class="deck-card-remove" onclick="removeFromDeck('${which}','${entry.id}')">−</button>`;
+    div.querySelector('img').addEventListener('click', () => showCardDetail(entry.cardData));
+    el.appendChild(div);
+  });
+}
+
+function removeFromDeck(which, id) {
+  const target = which === 'egg' ? deckEgg : deckMain;
+  const idx = target.findIndex(c => c.id === id);
+  if (idx < 0) return;
+  target[idx].count--;
+  if (target[idx].count <= 0) target.splice(idx, 1);
+  renderDeckList();
+}
+
+// ============================================================
+// GAME START
+// ============================================================
+function startGame() {
+  // build flat arrays
+  const main = [];
+  deckMain.forEach(e => { for (let i = 0; i < e.count; i++) main.push({ uid: newUid(), ...e.cardData }); });
+  const egg = [];
+  deckEgg.forEach(e => { for (let i = 0; i < e.count; i++) egg.push({ uid: newUid(), ...e.cardData }); });
+
+  gState.mainDeck = shuffle(main);
+  gState.eggDeck  = shuffle(egg);
+  gState.hand     = [];
+  gState.security = gState.mainDeck.splice(0, 5);
+  gState.hand     = gState.mainDeck.splice(0, 5);
+  gState.trash    = [];
+  gState.battle   = [];
+  gState.ikusei   = [];
+
+  document.getElementById('builder-screen').classList.remove('active');
+  document.getElementById('game-screen').classList.add('active');
+  renderGame();
+  showLog('ゲーム開始 — セキュリティ5枚・手札5枚セット');
+}
+
+function backToBuilder() {
+  document.getElementById('game-screen').classList.remove('active');
+  document.getElementById('builder-screen').classList.add('active');
+}
+
+// ============================================================
+// GAME RENDER
+// ============================================================
+function renderGame() {
+  document.getElementById('g-main-deck-count').textContent = gState.mainDeck.length;
+  document.getElementById('g-egg-deck-count').textContent  = gState.eggDeck.length;
+  document.getElementById('g-hand-count').textContent      = gState.hand.length;
+  document.getElementById('g-sec-count').textContent       = gState.security.length;
+  document.getElementById('g-trash-count').textContent     = gState.trash.length;
+  renderHand();
+  renderSecurity();
+  renderTrashTop();
+  renderFieldArea('g-battle-area', gState.battle);
+  renderFieldArea('g-ikusei-area', gState.ikusei);
+}
+
+function renderHand() {
+  document.getElementById('g-hand-count').textContent = gState.hand.length;
+  const el = document.getElementById('g-hand-area');
+  el.innerHTML = '';
+  gState.hand.forEach(card => el.appendChild(makeGameCard(card, 'hand')));
+}
+
+function renderSecurity() {
+  document.getElementById('g-sec-count').textContent = gState.security.length;
+  const el = document.getElementById('g-sec-pips');
+  el.innerHTML = '';
+  gState.security.forEach((card, i) => {
+    const pip = document.createElement('div');
+    pip.className = 'sec-pip';
+    pip.title = 'クリックで破壊→トラッシュ';
+    pip.onclick = () => {
+      const removed = gState.security.splice(i, 1)[0];
+      gState.trash.push(removed);
+      renderSecurity();
+      renderTrashTop();
+      showLog(`セキュリティ破壊: ${removed.name}`);
+    };
+    el.appendChild(pip);
+  });
+}
+
+function renderTrashTop() {
+  document.getElementById('g-trash-count').textContent = gState.trash.length;
+  const el = document.getElementById('g-trash-top');
+  if (!gState.trash.length) { el.innerHTML = '<div class="trash-placeholder">空</div>'; return; }
+  const top = gState.trash[gState.trash.length - 1];
+  el.innerHTML = `<img class="trash-top-card" src="${imgUrl(top)}" alt="${top.name}" onerror="this.style.background='#1a2a44'" title="${top.name}">`;
+}
+
+function renderFieldArea(elId, arr) {
+  const el = document.getElementById(elId);
+  el.innerHTML = '';
+  arr.forEach(card => el.appendChild(makeGameCard(card, elId.includes('battle') ? 'battle' : 'ikusei')));
+}
+
+// ============================================================
+// GAME CARD ELEMENT
+// ============================================================
+function makeGameCard(card, zone) {
+  const div = document.createElement('div');
+  div.className = 'g-card' + (card.tapped ? ' tapped' : '');
+  div.draggable = true;
+  div.dataset.uid = card.uid;
+  div.dataset.zone = zone;
+  div.innerHTML = `
+    <img src="${imgUrl(card)}" alt="${card.name}" onerror="this.style.background='#1a2a44'" title="${card.name}">
+    <button class="card-menu-btn">▼</button>`;
+  div.querySelector('.card-menu-btn').addEventListener('click', e => {
+    e.stopPropagation();
+    openCtxMenu(e, card, zone);
+  });
+  div.querySelector('img').addEventListener('click', e => {
+    if (zone !== 'hand') return; // hand: show detail on click
+    showCardDetail(card);
+  });
+  div.addEventListener('dragstart', e => {
+    e.dataTransfer.setData('uid', card.uid);
+    e.dataTransfer.setData('zone', zone);
+  });
+  return div;
+}
+
+// ============================================================
+// DRAG & DROP
+// ============================================================
+function onDragOver(e) {
+  e.preventDefault();
+  e.currentTarget.classList.add('dragover');
+}
+document.addEventListener('dragleave', e => {
+  if (e.target.classList.contains('field-drop')) e.target.classList.remove('dragover');
+});
+function onDrop(e, targetZone) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('dragover');
+  const uid = parseInt(e.dataTransfer.getData('uid'));
+  const fromZone = e.dataTransfer.getData('zone');
+  moveCard(uid, fromZone, targetZone);
+}
+
+function moveCard(uid, from, to) {
+  const fromArr = zoneArr(from);
+  const idx = fromArr.findIndex(c => c.uid === uid);
+  if (idx < 0) return;
+  const card = fromArr.splice(idx, 1)[0];
+  card.tapped = false;
+  zoneArr(to).push(card);
+  renderGame();
+  showLog(`${card.name}: ${zoneName(from)} → ${zoneName(to)}`);
+}
+
+function zoneArr(z) {
+  if (z === 'hand')   return gState.hand;
+  if (z === 'battle') return gState.battle;
+  if (z === 'ikusei') return gState.ikusei;
+  if (z === 'trash')  return gState.trash;
+  return [];
+}
+function zoneName(z) {
+  return { hand:'手札', battle:'バトル場', ikusei:'育成エリア', trash:'トラッシュ' }[z] || z;
+}
+
+// ============================================================
+// CONTEXT MENU
+// ============================================================
+function openCtxMenu(e, card, zone) {
+  const ctx = document.getElementById('ctx');
+  ctx.innerHTML = '';
+  const items = [];
+  if (zone === 'hand') {
+    items.push(['バトル場に出す', () => moveCard(card.uid, 'hand', 'battle')]);
+    items.push(['育成エリアに出す', () => moveCard(card.uid, 'hand', 'ikusei')]);
+    items.push(['トラッシュ', () => moveCard(card.uid, 'hand', 'trash')]);
+    items.push(['カード詳細', () => showCardDetail(card)]);
+  }
+  if (zone === 'battle') {
+    items.push([card.tapped ? '起こす（スタンド）' : 'レスト（横向き）', () => {
+      card.tapped = !card.tapped;
+      renderGame();
+      showLog(`${card.name}: ${card.tapped ? 'レスト' : 'スタンド'}`);
+    }]);
+    items.push(['育成エリアへ', () => moveCard(card.uid, 'battle', 'ikusei')]);
+    items.push(['手札に戻す', () => moveCard(card.uid, 'battle', 'hand')]);
+    items.push(['トラッシュ', () => moveCard(card.uid, 'battle', 'trash')]);
+    items.push(['カード詳細', () => showCardDetail(card)]);
+  }
+  if (zone === 'ikusei') {
+    items.push(['バトル場に移動', () => moveCard(card.uid, 'ikusei', 'battle')]);
+    items.push(['トラッシュ', () => moveCard(card.uid, 'ikusei', 'trash')]);
+    items.push(['カード詳細', () => showCardDetail(card)]);
+  }
+  items.forEach(([label, fn]) => {
+    const d = document.createElement('div');
+    d.className = 'ctx-item';
+    d.textContent = label;
+    d.onclick = () => { fn(); ctx.classList.remove('open'); };
+    ctx.appendChild(d);
+  });
+  ctx.style.left = Math.min(e.clientX, window.innerWidth - 170) + 'px';
+  ctx.style.top  = Math.min(e.clientY, window.innerHeight - items.length * 34 - 20) + 'px';
+  ctx.classList.add('open');
+}
+document.addEventListener('click', () => document.getElementById('ctx').classList.remove('open'));
+
+// ============================================================
+// ACTIONS
+// ============================================================
+function drawCard() {
+  if (!gState.mainDeck.length) { showLog('⚠ デッキが空！'); return; }
+  const card = gState.mainDeck.shift();
+  gState.hand.push(card);
+  renderGame();
+  showLog(`ドロー: ${card.name}`);
+}
+function drawEgg() {
+  if (!gState.eggDeck.length) { showLog('⚠ 育成デッキが空！'); return; }
+  const card = gState.eggDeck.shift();
+  gState.ikusei.push(card);
+  renderGame();
+  showLog(`育成エリアへ: ${card.name}`);
+}
+function shuffleMainDeck() {
+  gState.mainDeck = shuffle(gState.mainDeck);
+  showLog('デッキをシャッフル');
+}
+
+// ============================================================
+// MODALS
+// ============================================================
+function showTrashModal() {
+  const el = document.getElementById('trash-modal-cards');
+  el.innerHTML = '';
+  [...gState.trash].reverse().forEach(card => {
+    const img = document.createElement('img');
+    img.src = imgUrl(card);
+    img.alt = card.name;
+    img.title = card.name;
+    img.style.cssText = 'width:60px;height:84px;object-fit:cover;border-radius:4px;border:1px solid var(--border);cursor:pointer;';
+    img.onerror = () => { img.style.background = '#1a2a44'; };
+    img.onclick = () => showCardDetail(card);
+    el.appendChild(img);
+  });
+  document.getElementById('trash-modal').classList.add('open');
+}
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.getElementById('trash-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('trash-modal')) closeModal('trash-modal');
+});
+
+// ============================================================
+// CARD DETAIL
+// ============================================================
+function showCardDetail(card) {
+  document.getElementById('cd-img').src = imgUrl(card);
+  document.getElementById('cd-name').textContent = card.name || '';
+  document.getElementById('cd-id').textContent = card.id || '';
+  const stats = [
+    card.type && `タイプ: ${card.type}`,
+    card.color && `カラー: ${card.color}${card.color2 ? ' / ' + card.color2 : ''}`,
+    card.level && `レベル: ${card.level}`,
+    card.dp && `DP: ${card.dp.toLocaleString()}`,
+    card.play_cost != null && `登場コスト: ${card.play_cost}`,
+    card.evolution_cost != null && `進化コスト: ${card.evolution_cost}`,
+    card.rarity && `レアリティ: ${card.rarity}`,
+  ].filter(Boolean).join('\n');
+  document.getElementById('cd-stats').textContent = stats;
+  document.getElementById('cd-effect').textContent = [card.main_effect, card.source_effect].filter(Boolean).join('\n\n--- 進化元効果 ---\n');
+  document.getElementById('card-detail-overlay').classList.add('open');
+}
+function closeCardDetail() { document.getElementById('card-detail-overlay').classList.remove('open'); }
+
+// ============================================================
+// UTILS
+// ============================================================
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+function showLog(msg) {
+  document.getElementById('game-log').textContent = '> ' + msg;
+}
+</script>
+</body>
+</html>

@@ -1985,14 +1985,16 @@ async function loadCardDb() {
 async function fetchEnglishCardData(cardId) {
   try {
     const url = `https://digimoncard.io/api-public/search.php?card=${encodeURIComponent(cardId)}&series=Digimon+Card+Game`;
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const data = await res.json();
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000); // 5秒タイムアウト
+    const res = await fetch(url, { signal: controller.signal }).catch(() => null);
+    clearTimeout(timeout);
+    if (!res || !res.ok) return null;
+    const data = await res.json().catch(() => null);
     if (!data || !data.length) return null;
-    // 同じIDのものを優先
     const match = data.find(c => c.id === cardId) || data[0];
     return match;
-  } catch(e) { return null; }
+  } catch(e) { return null; } // CORSエラー含め全て無視してnullを返す
 }
 
 // カードDBに1枚追加してGitHubに保存
@@ -2000,23 +2002,19 @@ async function saveCardToGitHub(cardInfo, imageB64) {
   const cfg = loadSettings();
   if (!cfg.token) { alert('設定からGitHub Tokenを設定してください'); return; }
 
-  // 1. 英語APIデータとマージ
-  const enData = await fetchEnglishCardData(cardInfo.id);
+  // OCRデータをそのまま保存（英語APIマージなし）
   const merged = {
     id:            cardInfo.id,
-    name:          cardInfo.name,          // 日本語名（PDF OCR）
-    name_en:       enData?.name || '',     // 英語名（API）
-    level:         cardInfo.level  ?? enData?.level ?? null,
-    type:          cardInfo.type   || enData?.type  || '',
-    color:         cardInfo.color  || enData?.color || '',
-    color2:        cardInfo.color2 || enData?.color2 || null,
-    cost:          cardInfo.cost   ?? enData?.play_cost ?? null,
-    dp:            cardInfo.dp     ?? enData?.dp ?? null,
-    effect:        cardInfo.effect || '',              // 日本語効果（PDF OCR）
-    effect_en:     enData?.main_effect || '',          // 英語効果（API）
-    source_effect: cardInfo.source_effect || enData?.source_effect || null,
-    trait:         cardInfo.trait  || enData?.digi_type || null,
-    rarity:        enData?.rarity  || null,
+    name:          cardInfo.name,
+    level:         cardInfo.level  ?? null,
+    type:          cardInfo.type   || '',
+    color:         cardInfo.color  || '',
+    color2:        cardInfo.color2 || null,
+    cost:          cardInfo.cost   ?? null,
+    dp:            cardInfo.dp     ?? null,
+    effect:        cardInfo.effect || '',
+    source_effect: cardInfo.source_effect || null,
+    trait:         cardInfo.trait  || null,
   };
 
   // 2. 画像をアップロード

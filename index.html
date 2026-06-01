@@ -536,8 +536,8 @@ body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-
   <div class="search-panel">
     <div class="panel-head">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;"><h2 style="margin:0;">⬡ カード検索</h2><button onclick="openSettings()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);border-radius:5px;padding:3px 8px;cursor:pointer;font-size:11px;">⚙️</button></div>
-      <input class="search-input" id="search-input" placeholder="カード名（英語）例: Agumon / ShineGreymon" autocomplete="off">
-      <div class="search-hint">※ digimoncard.io APIを使用（英語名で検索）</div>
+      <input class="search-input" id="search-input" placeholder="カード名（日本語・英語）例: シャイングレイモン / Agumon" autocomplete="off">
+      <div class="search-hint">※ 登録済みカードは日本語で検索可。未登録は英語で検索</div>
       <div style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px;">
         <div style="font-size:10px;color:var(--accent2);margin-bottom:5px;">📄 PDFからカード登録</div>
         <label style="display:block;background:var(--bg3);border:1px dashed var(--border2);border-radius:6px;padding:7px;text-align:center;cursor:pointer;font-size:11px;color:var(--text2);">
@@ -825,6 +825,11 @@ function jaLabel(card) {
   return parts.join(' · ');
 }
 
+// 検索結果のカード名表示: 日本語優先
+function displayName(card) {
+  return card.name || card.name_en || '';
+}
+
 // ============================================================
 // SEARCH
 // ============================================================
@@ -840,45 +845,80 @@ document.getElementById('search-input').addEventListener('input', function() {
   searchTimer = setTimeout(() => searchCards(q), 400);
 });
 
+// ローカルDB検索（日本語名・英語名・カードID対応）
+function searchLocalDb(q) {
+  if (!cardDbCache) return [];
+  const lower = q.toLowerCase();
+  return Object.values(cardDbCache).filter(card => {
+    return (card.name       && card.name.includes(q))       // 日本語名
+        || (card.name_en    && card.name_en.toLowerCase().includes(lower)) // 英語名
+        || (card.id         && card.id.toLowerCase().includes(lower));     // カードID
+  }).slice(0, 20);
+}
+
 async function searchCards(q) {
+  // まずローカルDBを検索
+  const localResults = searchLocalDb(q);
+  if (localResults.length > 0) {
+    renderSearchResults(localResults, true);
+    return;
+  }
+  // ローカルにヒットしなければAPI検索（英語のみ）
   try {
+    document.getElementById('search-results').innerHTML = '<div class="search-loading">API検索中…</div>';
     const url = `https://digimoncard.io/index.php/api-public/search?n=${encodeURIComponent(q)}&series=Digimon+Card+Game&sort=id&sortdirection=ASC&num=20`;
     const res = await fetch(url);
     if (!res.ok) throw new Error('API error');
     const data = await res.json();
-    // dedupe by id
     const seen = new Set();
     const unique = data.filter(c => {
       if (seen.has(c.id)) return false;
       seen.add(c.id);
       return true;
     });
-    renderSearchResults(unique);
+    renderSearchResults(unique, false);
   } catch(e) {
     document.getElementById('search-results').innerHTML = '<div class="search-loading">検索失敗。ネットワークを確認してください</div>';
   }
 }
 
-function renderSearchResults(cards) {
+function renderSearchResults(cards, fromLocal=false) {
   const el = document.getElementById('search-results');
   if (!cards.length) { el.innerHTML = '<div class="search-loading">該当なし</div>'; return; }
   el.innerHTML = '';
+  if (fromLocal) {
+    const badge = document.createElement('div');
+    badge.style.cssText = 'font-size:10px;color:var(--green);padding:4px 6px;';
+    badge.textContent = `✓ ローカルDB（${cards.length}件）`;
+    el.appendChild(badge);
+  }
   cards.forEach(card => {
     const div = document.createElement('div');
     div.className = 'result-card';
+    // サムネイル: DB画像があれば使う（毎回計算）
+    const ghUrl = card.imageB64
+      ? `data:image/jpeg;base64,${card.imageB64}`
+      : ghImgUrl(card.id);
+    const thumbHtml = ghUrl
+      ? `<img src="${ghUrl}" class="result-thumb" style="object-fit:cover;" onerror="this.style.background='#1a2a44'">`
+      : `<div class="result-thumb">${(() => { const segs=[card.color,card.color2].filter(Boolean); return (segs.length?segs:['Colorless']).map(c=>`<div style="flex:1;background:${colorHex(c)}"></div>`).join(''); })()}</div>`;
+    const subName = card.name && card.name_en && card.name !== card.name_en ? `<div style="font-size:9px;color:var(--text2);">${card.name_en}</div>` : '';
     div.innerHTML = `
-      <div class="result-thumb" style="display:flex;flex-direction:column;overflow:hidden;border-radius:3px;border:1px solid var(--border);">${(() => { const segs=[card.color,card.color2].filter(Boolean); return (segs.length?segs:['Colorless']).map(c=>`<div style="flex:1;background:${colorHex(c)}"></div>`).join(''); })()}</div>
+      ${thumbHtml}
       <div class="result-info">
-        <div class="result-name">${card.name}</div>
+        <div class="result-name">${displayName(card)}</div>
+        ${subName}
         <div class="result-id">${card.id}</div>
         <div class="result-meta">${jaLabel(card)}</div>
         <button class="result-add-btn" onclick="addToDeck(event)">+ デッキに追加</button>
       </div>`;
-    div.dataset.card = JSON.stringify(card);
-    div.querySelector('.result-add-btn').dataset.card = JSON.stringify(card);
+    // ghImgUrlをcard objectに付与
+    const cardWithImg = {...card, ghImgUrl: ghUrl};
+    div.dataset.card = JSON.stringify(cardWithImg);
+    div.querySelector('.result-add-btn').dataset.card = JSON.stringify(cardWithImg);
     div.addEventListener('click', e => {
       if (e.target.classList.contains('result-add-btn')) return;
-      showCardDetail(card);
+      showCardDetail(cardWithImg);
     });
     el.appendChild(div);
   });
@@ -1249,25 +1289,57 @@ async function showCardDetail(card) {
   }
   const cdSegs = [card.color, card.color2].filter(Boolean);
   const cdCols = (cdSegs.length ? cdSegs : ['Colorless']).map(c => `<div style="flex:1;background:${colorHex(c)}"></div>`).join('');
-  cdImg.innerHTML = `<div style="flex:1;display:flex;">${cdCols}</div><div style="background:rgba(0,0,0,0.8);padding:6px 8px;"><div style="font-size:13px;font-weight:bold;color:#aac8ff;">${cardTypeLabel(card)}</div><div style="font-size:11px;color:#ffe080;">${cardCostLabel(card)}</div><div style="font-size:10px;color:#e8eeff;">${card.name||''}</div></div>`;
-  document.getElementById('cd-name').textContent = card.name || '';
+
+  // 画像: ghImgUrl を毎回計算（DBカードにもURL付与）
+  const resolvedImgUrl = card.imageB64
+    ? `data:image/jpeg;base64,${card.imageB64}`
+    : ghImgUrl(card.id);
+
+  if (resolvedImgUrl) {
+    cdImg.style.cssText = 'flex-shrink:0;width:120px;height:168px;border-radius:6px;overflow:hidden;';
+    cdImg.innerHTML = `<img src="${resolvedImgUrl}" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.innerHTML='<div style=\'flex:1;display:flex;\'>${cdCols}</div>'">`;
+  } else {
+    cdImg.style.cssText = 'display:flex;flex-direction:column;overflow:hidden;border-radius:6px;flex-shrink:0;width:120px;height:168px;';
+    cdImg.innerHTML = `<div style="flex:1;display:flex;">${cdCols}</div><div style="background:rgba(0,0,0,0.8);padding:6px 8px;"><div style="font-size:13px;font-weight:bold;color:#aac8ff;">${cardTypeLabel(card)}</div><div style="font-size:11px;color:#ffe080;">${cardCostLabel(card)}</div><div style="font-size:10px;color:#e8eeff;">${card.name||card.name_en||''}</div></div>`;
+  }
+
+  // 名前: 日本語優先
+  document.getElementById('cd-name').textContent = card.name || card.name_en || '';
   document.getElementById('cd-id').textContent = card.id || '';
+
+  // コスト: DB(cost) と API(play_cost) どちらも対応
+  const displayCost = card.cost ?? card.play_cost ?? null;
+  const displayEvoCost = card.evolution_cost ?? null;
   const stats = [
-    card.type && `タイプ: ${jaType(card.type)}`,
+    card.type  && `タイプ: ${jaType(card.type)}`,
     card.color && `カラー: ${jaColor(card.color)}${card.color2 ? ' / ' + jaColor(card.color2) : ''}`,
     card.level && `レベル: ${card.level}`,
-    card.dp && `DP: ${Number(card.dp).toLocaleString()}`,
-    card.play_cost != null && `登場コスト: ${card.play_cost}`,
-    card.evolution_cost != null && `進化コスト: ${card.evolution_cost}`,
-    card.rarity && `レアリティ: ${card.rarity}`,
+    card.dp    && `DP: ${Number(card.dp).toLocaleString()}`,
+    displayCost    != null && `登場コスト: ${displayCost}`,
+    displayEvoCost != null && `進化コスト: ${displayEvoCost}`,
+    card.rarity    && `レアリティ: ${card.rarity}`,
+    card.trait     && `特徴: ${card.trait}`,
   ].filter(Boolean).join('\n');
   document.getElementById('cd-stats').textContent = stats;
+
   const effectEl = document.getElementById('cd-effect');
-  const rawEffect = [card.main_effect, card.source_effect].filter(Boolean).join('\n\n--- 進化元効果 ---\n');
   document.getElementById('card-detail-overlay').classList.add('open');
-  if (!rawEffect.trim()) { effectEl.textContent = '（効果なし）'; return; }
+
+  // 効果テキスト: 日本語(effect)優先 → なければ英語(main_effect)を翻訳
+  const jaEffect = [card.effect, card.source_effect].filter(Boolean).join('\n\n--- 進化元効果 ---\n');
+  const enEffect = [card.main_effect, card.source_effect_en].filter(Boolean).join('\n\n--- 進化元効果 ---\n');
+
+  if (jaEffect.trim()) {
+    // DBに日本語効果あり → そのまま表示
+    effectEl.textContent = jaEffect;
+    return;
+  }
+  if (!enEffect.trim()) { effectEl.textContent = '（効果なし）'; return; }
+
+  // 翻訳キャッシュ確認
   const cacheKey = card.id || card.name;
   if (translateCache[cacheKey]) { effectEl.textContent = translateCache[cacheKey]; return; }
+
   effectEl.textContent = '翻訳中…';
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -1278,16 +1350,16 @@ async function showCardDetail(card) {
         max_tokens: 800,
         messages: [{
           role: 'user',
-          content: `次のデジモンカードゲームの効果テキストを日本語に翻訳してください。[On Play][When Digivolving]などのタグはそのまま残し、固有名詞は英語のままでOKです。翻訳文のみ返してください。\n\n${rawEffect}`
+          content: `次のデジモンカードゲームの効果テキストを日本語に翻訳してください。[On Play][When Digivolving]などのタグはそのまま残し、固有名詞は英語のままでOKです。翻訳文のみ返してください。\n\n${enEffect}`
         }]
       })
     });
     const data = await res.json();
-    const translated = data.content?.[0]?.text || rawEffect;
+    const translated = data.content?.[0]?.text || enEffect;
     translateCache[cacheKey] = translated;
     effectEl.textContent = translated;
   } catch(e) {
-    effectEl.textContent = rawEffect;
+    effectEl.textContent = enEffect;
   }
 }
 function closeCardDetail() { document.getElementById('card-detail-overlay').classList.remove('open'); }
@@ -1521,36 +1593,33 @@ function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 // ============================================================
 
 // 設定はlocalStorageに保存（トークンはブラウザローカルのみ）
+const GH_USER = 'KaboTea';
+const GH_REPO = 'digica-tool';
+
 function loadSettings() {
   return {
     token: localStorage.getItem('ghToken') || '',
-    user:  localStorage.getItem('ghUser')  || '',
-    repo:  localStorage.getItem('ghRepo')  || '',
+    user:  GH_USER,
+    repo:  GH_REPO,
   };
 }
 function openSettings() {
   const cfg = loadSettings();
   document.getElementById('cfg-token').value = cfg.token;
-  document.getElementById('cfg-user').value  = cfg.user;
-  document.getElementById('cfg-repo').value  = cfg.repo;
   document.getElementById('cfg-status').textContent = '';
   document.getElementById('settings-modal').classList.add('open');
 }
 async function saveSettings() {
   const token = document.getElementById('cfg-token').value.trim();
-  const user  = document.getElementById('cfg-user').value.trim();
-  const repo  = document.getElementById('cfg-repo').value.trim();
   const status = document.getElementById('cfg-status');
-  if (!token || !user || !repo) { status.textContent = '全項目を入力してください'; status.style.color='var(--red)'; return; }
+  if (!token) { status.textContent = 'Tokenを入力してください'; status.style.color='var(--red)'; return; }
   status.textContent = '接続確認中…'; status.style.color = 'var(--text2)';
   try {
-    const res = await fetch(`https://api.github.com/repos/${user}/${repo}`, {
+    const res = await fetch(`https://api.github.com/repos/${GH_USER}/${GH_REPO}`, {
       headers: { Authorization: `token ${token}`, Accept: 'application/vnd.github.v3+json' }
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     localStorage.setItem('ghToken', token);
-    localStorage.setItem('ghUser',  user);
-    localStorage.setItem('ghRepo',  repo);
     status.textContent = '✓ 接続成功！設定を保存しました';
     status.style.color = 'var(--green)';
   } catch(e) {
@@ -1607,34 +1676,55 @@ async function loadCardDb() {
   return cardDbCache;
 }
 
+// digimoncard.io APIから英語データを取得してマージ
+async function fetchEnglishCardData(cardId) {
+  try {
+    const url = `https://digimoncard.io/index.php/api-public/search?card=${encodeURIComponent(cardId)}&series=Digimon+Card+Game`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data || !data.length) return null;
+    // 同じIDのものを優先
+    const match = data.find(c => c.id === cardId) || data[0];
+    return match;
+  } catch(e) { return null; }
+}
+
 // カードDBに1枚追加してGitHubに保存
 async function saveCardToGitHub(cardInfo, imageB64) {
   const cfg = loadSettings();
   if (!cfg.token) { alert('設定からGitHub Tokenを設定してください'); return; }
 
-  // 1. 画像をアップロード
+  // 1. 英語APIデータとマージ
+  const enData = await fetchEnglishCardData(cardInfo.id);
+  const merged = {
+    id:            cardInfo.id,
+    name:          cardInfo.name,          // 日本語名（PDF OCR）
+    name_en:       enData?.name || '',     // 英語名（API）
+    level:         cardInfo.level  ?? enData?.level ?? null,
+    type:          cardInfo.type   || enData?.type  || '',
+    color:         cardInfo.color  || enData?.color || '',
+    color2:        cardInfo.color2 || enData?.color2 || null,
+    cost:          cardInfo.cost   ?? enData?.play_cost ?? null,
+    dp:            cardInfo.dp     ?? enData?.dp ?? null,
+    effect:        cardInfo.effect || '',              // 日本語効果（PDF OCR）
+    effect_en:     enData?.main_effect || '',          // 英語効果（API）
+    source_effect: cardInfo.source_effect || enData?.source_effect || null,
+    trait:         cardInfo.trait  || enData?.digi_type || null,
+    rarity:        enData?.rarity  || null,
+  };
+
+  // 2. 画像をアップロード
   const imgPath = `cards/${cardInfo.id}.jpg`;
   await ghUploadFile(imgPath, imageB64, `Add card image: ${cardInfo.id}`);
 
-  // 2. db.jsonを更新
+  // 3. db.jsonを更新
   const db = await loadCardDb();
-  db[cardInfo.id] = {
-    id:            cardInfo.id,
-    name:          cardInfo.name,
-    level:         cardInfo.level,
-    type:          cardInfo.type,
-    color:         cardInfo.color,
-    color2:        cardInfo.color2 || null,
-    cost:          cardInfo.cost,
-    dp:            cardInfo.dp,
-    effect:        cardInfo.effect,
-    source_effect: cardInfo.source_effect || null,
-    trait:         cardInfo.trait || null,
-  };
+  db[cardInfo.id] = merged;
   cardDbCache = db;
   const dbB64 = btoa(unescape(encodeURIComponent(JSON.stringify(db, null, 2))));
   await ghUploadFile('cards/db.json', dbB64, `Update db: ${cardInfo.id}`);
-  return db[cardInfo.id];
+  return merged;
 }
 
 // GitHubのカード画像URLを返す
@@ -1671,15 +1761,8 @@ function showLog(msg) {
           style="width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:6px;padding:7px 10px;font-size:12px;outline:none;">
         <div style="font-size:10px;color:var(--text2);margin-top:3px;">repo スコープのTokenを入力してください</div>
       </div>
-      <div>
-        <div style="font-size:11px;color:var(--accent2);margin-bottom:4px;">GitHubユーザー名</div>
-        <input id="cfg-user" type="text" placeholder="kabotea"
-          style="width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:6px;padding:7px 10px;font-size:12px;outline:none;">
-      </div>
-      <div>
-        <div style="font-size:11px;color:var(--accent2);margin-bottom:4px;">リポジトリ名</div>
-        <input id="cfg-repo" type="text" placeholder="-"
-          style="width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:6px;padding:7px 10px;font-size:12px;outline:none;">
+      <div style="font-size:10px;color:var(--text2);background:var(--bg3);border-radius:5px;padding:6px 8px;">
+        リポジトリ: <span style="color:var(--accent2);">KaboTea/digica-tool</span>（固定）
       </div>
       <div id="cfg-status" style="font-size:11px;color:var(--text2);min-height:16px;"></div>
       <div style="display:flex;gap:8px;">

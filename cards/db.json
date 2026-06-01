@@ -14,5 +14,21 @@
     "source_effect": "【自分のターン】〈ターンに1回〉黄/赤の自分のデジモンがレストしたとき、①ドロー。",
     "trait": "幼年期/レッサー型/ビーロー",
     "rarity": null
+  },
+  "BT13-008": {
+    "id": "BT13-008",
+    "name": "アグモン",
+    "name_en": "",
+    "level": "Lv.3",
+    "type": "DIGIMON",
+    "color": "Red",
+    "color2": "Yellow",
+    "cost": 3,
+    "dp": 2000,
+    "effect": "【自分のターン】ターンに1回 赤か黄の自分のテイマーがレストしたとき、DP3000以下の相手のデジモン1体を消滅できる。",
+    "effect_en": "",
+    "source_effect": null,
+    "trait": "成長期/ワクチン種/恐竜型",
+    "rarity": null
   }
 }

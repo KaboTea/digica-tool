@@ -665,7 +665,11 @@ body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-
 <!-- Card detail overlay -->
 <div class="card-detail-overlay" id="card-detail-overlay" onclick="closeCardDetail()">
   <div class="card-detail" onclick="event.stopPropagation()">
-    <div id="cd-img" style="width:120px;height:168px;flex-shrink:0;border-radius:6px;overflow:hidden;display:flex;flex-direction:column;"></div>
+    <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
+      <div id="cd-img" style="width:120px;height:168px;border-radius:6px;overflow:hidden;display:flex;flex-direction:column;cursor:pointer;" title="クリックで画像を差し替え" onclick="replaceCardImage()"></div>
+      <button onclick="openCardEdit()" style="background:var(--accent);border:none;color:#fff;border-radius:5px;padding:5px;cursor:pointer;font-size:11px;width:120px;">✏️ 編集</button>
+      <button onclick="openGitHubDb()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);border-radius:5px;padding:5px;cursor:pointer;font-size:10px;width:120px;">GitHub編集</button>
+    </div>
     <div class="card-detail-info">
       <div class="cd-name" id="cd-name"></div>
       <div class="cd-id" id="cd-id"></div>
@@ -673,6 +677,97 @@ body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-
       <div class="cd-effect" id="cd-effect"></div>
     </div>
     <button class="cd-close" onclick="closeCardDetail()">✕</button>
+  </div>
+</div>
+
+<!-- カード編集モーダル -->
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal" style="width:460px;max-height:85vh;">
+    <h3>✏️ カード編集</h3>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">
+      <div style="display:flex;gap:10px;">
+        <!-- 左: 画像 -->
+        <div style="flex-shrink:0;">
+          <div id="edit-img-preview" style="width:80px;height:112px;border-radius:5px;overflow:hidden;border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;background:var(--bg3);font-size:10px;color:var(--text2);" onclick="document.getElementById('edit-img-input').click()">
+            画像変更
+          </div>
+          <input type="file" id="edit-img-input" accept="image/*" style="display:none">
+        </div>
+        <!-- 右: フィールド -->
+        <div style="flex:1;display:flex;flex-direction:column;gap:5px;">
+          <div style="display:flex;gap:5px;">
+            <div style="flex:1;">
+              <div style="font-size:10px;color:var(--accent2);margin-bottom:2px;">カードID</div>
+              <input id="edit-id" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px 7px;font-size:11px;outline:none;" readonly>
+            </div>
+            <div style="flex:1;">
+              <div style="font-size:10px;color:var(--accent2);margin-bottom:2px;">カード名</div>
+              <input id="edit-name" style="width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:4px;padding:4px 7px;font-size:11px;outline:none;">
+            </div>
+          </div>
+          <div style="display:flex;gap:5px;">
+            <div style="flex:1;">
+              <div style="font-size:10px;color:var(--accent2);margin-bottom:2px;">タイプ</div>
+              <select id="edit-type" style="width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:4px;padding:4px 7px;font-size:11px;outline:none;">
+                <option>DIGITAMA</option>
+                <option>DIGIMON</option>
+                <option>TAMER</option>
+                <option>OPTION</option>
+              </select>
+            </div>
+            <div style="flex:1;">
+              <div style="font-size:10px;color:var(--accent2);margin-bottom:2px;">レベル</div>
+              <input id="edit-level" type="number" style="width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:4px;padding:4px 7px;font-size:11px;outline:none;">
+            </div>
+          </div>
+          <div style="display:flex;gap:5px;">
+            <div style="flex:1;">
+              <div style="font-size:10px;color:var(--accent2);margin-bottom:2px;">色1</div>
+              <select id="edit-color" style="width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:4px;padding:4px 7px;font-size:11px;outline:none;">
+                <option value="">—</option>
+                <option>Red</option><option>Blue</option><option>Yellow</option>
+                <option>Green</option><option>Black</option><option>Purple</option><option>White</option>
+              </select>
+            </div>
+            <div style="flex:1;">
+              <div style="font-size:10px;color:var(--accent2);margin-bottom:2px;">色2</div>
+              <select id="edit-color2" style="width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:4px;padding:4px 7px;font-size:11px;outline:none;">
+                <option value="">—</option>
+                <option>Red</option><option>Blue</option><option>Yellow</option>
+                <option>Green</option><option>Black</option><option>Purple</option><option>White</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:flex;gap:5px;">
+            <div style="flex:1;">
+              <div style="font-size:10px;color:var(--accent2);margin-bottom:2px;">コスト</div>
+              <input id="edit-cost" type="number" style="width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:4px;padding:4px 7px;font-size:11px;outline:none;">
+            </div>
+            <div style="flex:1;">
+              <div style="font-size:10px;color:var(--accent2);margin-bottom:2px;">DP</div>
+              <input id="edit-dp" type="number" style="width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:4px;padding:4px 7px;font-size:11px;outline:none;">
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:10px;color:var(--accent2);margin-bottom:2px;">特徴</div>
+        <input id="edit-trait" style="width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:4px;padding:4px 7px;font-size:11px;outline:none;">
+      </div>
+      <div>
+        <div style="font-size:10px;color:var(--accent2);margin-bottom:2px;">効果テキスト</div>
+        <textarea id="edit-effect" rows="4" style="width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:4px;padding:5px 7px;font-size:11px;outline:none;resize:vertical;line-height:1.5;"></textarea>
+      </div>
+      <div>
+        <div style="font-size:10px;color:var(--accent2);margin-bottom:2px;">進化元効果</div>
+        <textarea id="edit-source-effect" rows="2" style="width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:4px;padding:5px 7px;font-size:11px;outline:none;resize:vertical;line-height:1.5;"></textarea>
+      </div>
+      <div id="edit-status" style="font-size:11px;color:var(--text2);min-height:14px;"></div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="saveCardEdit()" style="flex:1;background:var(--green);border:none;color:#fff;border-radius:6px;padding:8px;cursor:pointer;font-size:13px;font-weight:bold;">💾 保存</button>
+        <button onclick="closeModal('edit-modal')" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);border-radius:6px;padding:8px 14px;cursor:pointer;font-size:12px;">キャンセル</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1280,8 +1375,151 @@ document.getElementById('trash-modal').addEventListener('click', e => {
 // ============================================================
 // 翻訳キャッシュ
 const translateCache = {};
+let currentDetailCard = null;
+// ============================================================
+// カード編集
+// ============================================================
+let editingCard = null;
+let editingNewImageB64 = null;
+
+function openCardEdit() {
+  const card = currentDetailCard;
+  if (!card) return;
+  editingCard = card;
+  editingNewImageB64 = null;
+
+  // フォームに値をセット
+  document.getElementById('edit-id').value           = card.id || '';
+  document.getElementById('edit-name').value         = card.name || '';
+  document.getElementById('edit-type').value         = card.type || 'DIGIMON';
+  document.getElementById('edit-level').value        = card.level ?? '';
+  document.getElementById('edit-color').value        = card.color || '';
+  document.getElementById('edit-color2').value       = card.color2 || '';
+  document.getElementById('edit-cost').value         = card.cost ?? card.play_cost ?? '';
+  document.getElementById('edit-dp').value           = card.dp ?? '';
+  document.getElementById('edit-trait').value        = card.trait || '';
+  document.getElementById('edit-effect').value       = card.effect || card.main_effect || '';
+  document.getElementById('edit-source-effect').value = card.source_effect || '';
+  document.getElementById('edit-status').textContent = '';
+
+  // 画像プレビュー
+  const preview = document.getElementById('edit-img-preview');
+  const imgSrc = card.imageB64
+    ? `data:image/jpeg;base64,${card.imageB64}`
+    : ghImgUrl(card.id);
+  if (imgSrc) {
+    preview.innerHTML = `<img src="${imgSrc}" style="width:100%;height:100%;object-fit:cover;">`;
+  } else {
+    preview.textContent = '画像変更';
+  }
+
+  // 画像変更ハンドラ
+  const imgInput = document.getElementById('edit-img-input');
+  imgInput.onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const b64 = ev.target.result.split(',')[1];
+      editingNewImageB64 = b64;
+      preview.innerHTML = `<img src="${ev.target.result}" style="width:100%;height:100%;object-fit:cover;">`;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  document.getElementById('edit-modal').classList.add('open');
+}
+
+async function saveCardEdit() {
+  const status = document.getElementById('edit-status');
+  const cfg = loadSettings();
+  if (!cfg.token) { status.textContent = '保存にはGitHub Tokenが必要です'; status.style.color='var(--red)'; return; }
+
+  status.textContent = '保存中…'; status.style.color = 'var(--text2)';
+
+  try {
+    const updated = {
+      ...editingCard,
+      name:          document.getElementById('edit-name').value.trim(),
+      type:          document.getElementById('edit-type').value,
+      level:         document.getElementById('edit-level').value !== '' ? Number(document.getElementById('edit-level').value) : null,
+      color:         document.getElementById('edit-color').value || null,
+      color2:        document.getElementById('edit-color2').value || null,
+      cost:          document.getElementById('edit-cost').value !== '' ? Number(document.getElementById('edit-cost').value) : null,
+      dp:            document.getElementById('edit-dp').value !== '' ? Number(document.getElementById('edit-dp').value) : null,
+      trait:         document.getElementById('edit-trait').value.trim() || null,
+      effect:        document.getElementById('edit-effect').value.trim(),
+      source_effect: document.getElementById('edit-source-effect').value.trim() || null,
+    };
+
+    // 画像が変更された場合はアップロード
+    if (editingNewImageB64) {
+      await ghUploadFile(`cards/${updated.id}.jpg`, editingNewImageB64, `Update card image: ${updated.id}`);
+      updated.imageB64 = editingNewImageB64;
+    }
+
+    // db.json更新
+    const db = await loadCardDb();
+    db[updated.id] = updated;
+    cardDbCache = db;
+    const dbB64 = btoa(unescape(encodeURIComponent(JSON.stringify(db, null, 2))));
+    await ghUploadFile('cards/db.json', dbB64, `Edit card: ${updated.id}`);
+
+    // ローカルDBも更新
+    await dbPut(updated);
+
+    status.textContent = '✓ 保存しました！'; status.style.color = 'var(--green)';
+    editingCard = updated;
+
+    // カード詳細も更新
+    setTimeout(() => {
+      closeModal('edit-modal');
+      showCardDetail(updated);
+    }, 800);
+
+  } catch(e) {
+    status.textContent = `エラー: ${e.message}`; status.style.color = 'var(--red)';
+  }
+}
+
+// カード詳細から直接画像を差し替え
+function replaceCardImage() {
+  if (!currentDetailCard) return;
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = 'image/*';
+  input.onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const b64 = ev.target.result.split(',')[1];
+      const cfg = loadSettings();
+      if (!cfg.token) { alert('GitHub Tokenが必要です'); return; }
+      try {
+        await ghUploadFile(`cards/${currentDetailCard.id}.jpg`, b64, `Update image: ${currentDetailCard.id}`);
+        const updated = {...currentDetailCard, imageB64: b64};
+        const db = await loadCardDb();
+        db[updated.id] = updated;
+        cardDbCache = db;
+        const dbB64 = btoa(unescape(encodeURIComponent(JSON.stringify(db, null, 2))));
+        await ghUploadFile('cards/db.json', dbB64, `Update image: ${updated.id}`);
+        await dbPut(updated);
+        showCardDetail(updated);
+      } catch(e) { alert('エラー: ' + e.message); }
+    };
+    reader.readAsDataURL(file);
+  };
+  input.click();
+}
+
+function openGitHubDb() {
+  window.open(`https://github.com/${GH_USER}/${GH_REPO}/blob/main/cards/db.json`, '_blank');
+}
+
+
 
 async function showCardDetail(card) {
+  currentDetailCard = card;
   const cdImg = document.getElementById('cd-img');
   cdImg.style.cssText = 'display:flex;flex-direction:column;overflow:hidden;border-radius:6px;flex-shrink:0;width:120px;height:168px;';
   // GitHub画像があれば詳細でも表示
@@ -1422,16 +1660,17 @@ async function processPDF(file) {
       const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const trimmed = trimWhitespace(canvas, imgData);
 
-      // 9枚に切り分け
+      // 9枚に切り分け（{full, effect}のペア）
       const cards9 = split3x3(trimmed);
 
       // 各カードをClaude APIで読み取り
       for (let i = 0; i < cards9.length; i++) {
-        const cardCanvas = cards9[i];
-        const b64 = cardCanvas.toDataURL('image/jpeg', 0.9).split(',')[1];
+        const { full: cardCanvas, effect: effectCanvas } = cards9[i];
+        const b64Full   = cardCanvas.toDataURL('image/jpeg', 0.92).split(',')[1];
+        const b64Effect = effectCanvas.toDataURL('image/jpeg', 0.95).split(',')[1];
         status.textContent = `P${pageNum} カード${i+1}/9 読み取り中…`;
         try {
-          const cardInfo = await readCardWithClaude(b64);
+          const cardInfo = await readCardWithClaude(b64Full, b64Effect);
           if (cardInfo && cardInfo.id) {
             // 既存チェック
             const db = await loadCardDb();
@@ -1513,57 +1752,52 @@ function trimWhitespace(canvas, imgData) {
   return out;
 }
 
-// 3×3に分割（境界は輝度プロファイルで精密化）
+// 3×3に分割（固定座標 - デジカレシピクリエイターPDFフォーマット固定）
+// 戻り値: [{full: canvas, effect: canvas}] × 9枚
 function split3x3(canvas) {
   const w = canvas.width, h = canvas.height;
-  const ctx = canvas.getContext('2d');
-  const imgData = ctx.getImageData(0, 0, w, h).data;
 
-  const rowBright = [];
-  for (let y = 0; y < h; y++) {
-    let s = 0;
-    for (let x = 0; x < w; x++) { const i=(y*w+x)*4; s+=(imgData[i]+imgData[i+1]+imgData[i+2])/3; }
-    rowBright.push(s / w);
-  }
-  const colBright = [];
-  for (let x = 0; x < w; x++) {
-    let s = 0;
-    for (let y = 0; y < h; y++) { const i=(y*w+x)*4; s+=(imgData[i]+imgData[i+1]+imgData[i+2])/3; }
-    colBright.push(s / h);
-  }
+  // 固定比率（PDF 3倍スケール計測値から算出）
+  const colRatios = [0, 481/1564, 1015/1564, 1];
+  const rowRatios = [0, 717/2219, 1476/2219, 1];
+  const wCuts = colRatios.map(r => Math.round(r * w));
+  const hCuts = rowRatios.map(r => Math.round(r * h));
 
-  const findSep = (arr, expected, range=60) => {
-    const s = Math.max(0, expected-range), e = Math.min(arr.length, expected+range);
-    let maxV = -1, maxI = expected;
-    for (let i = s; i < e; i++) { if (arr[i] > maxV) { maxV = arr[i]; maxI = i; } }
-    return maxI;
-  };
-
-  const h1 = findSep(rowBright, Math.floor(h/3));
-  const h2 = findSep(rowBright, Math.floor(h*2/3));
-  const w1 = findSep(colBright, Math.floor(w/3));
-  const w2 = findSep(colBright, Math.floor(w*2/3));
-
-  const hCuts = [0, h1, h2, h];
-  const wCuts = [0, w1, w2, w];
-  const pad = 3;
+  const pad = 4;
   const result = [];
 
   for (let r = 0; r < 3; r++) {
     for (let c = 0; c < 3; c++) {
-      const sy = hCuts[r]+pad, ey = hCuts[r+1]-pad;
       const sx = wCuts[c]+pad, ex = wCuts[c+1]-pad;
-      const out = document.createElement('canvas');
-      out.width = ex-sx; out.height = ey-sy;
-      out.getContext('2d').drawImage(canvas, sx, sy, out.width, out.height, 0, 0, out.width, out.height);
-      result.push(out);
+      const sy = hCuts[r]+pad, ey = hCuts[r+1]-pad;
+      const cardH = ey - sy;
+      const cardW = ex - sx;
+
+      // カード全体
+      const full = document.createElement('canvas');
+      full.width = cardW; full.height = cardH;
+      full.getContext('2d').drawImage(canvas, sx, sy, cardW, cardH, 0, 0, cardW, cardH);
+
+      // 効果エリア（下33%）を2倍に拡大
+      const effectY = Math.round(cardH * 0.67);
+      const effectH = cardH - effectY;
+      const effect = document.createElement('canvas');
+      effect.width  = cardW * 2;
+      effect.height = effectH * 2;
+      effect.getContext('2d').drawImage(
+        canvas,
+        sx, sy + effectY, cardW, effectH,   // 元の切り取り範囲
+        0, 0, cardW * 2, effectH * 2         // 2倍に拡大
+      );
+
+      result.push({ full, effect });
     }
   }
   return result;
 }
 
 // Claude APIでカード情報読み取り
-async function readCardWithClaude(b64) {
+async function readCardWithClaude(b64Full, b64Effect) {
   const cfg = loadSettings();
   if (!cfg.anthropicKey) throw new Error('Anthropic APIキーが設定されていません。⚙️設定から入力してください');
   const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -1580,10 +1814,34 @@ async function readCardWithClaude(b64) {
       messages: [{
         role: 'user',
         content: [
-          { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: b64 } },
-          { type: 'text', text: `このデジモンカードゲームのカード画像からJSON形式で情報を抽出してください。
-{"id":"カードID(例:BT21-004)","name":"カード名(日本語)","level":レベル数値orNull,"type":"DIGITAMA/DIGIMON/TAMER/OPTION","color":"Red/Blue/Yellow/Green/Black/Purple/White","color2":null or "色","cost":コスト数値orNull,"dp":DP数値orNull,"effect":"効果テキスト日本語","source_effect":"進化元効果orNull","trait":"成長期など"}
-JSONのみ返してください。` }
+          { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: b64Full } },
+          { type: 'text', text: '↑カード全体画像。↓効果テキストエリアの拡大画像（こちらを優先してテキストを読み取ってください）' },
+          { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: b64Effect } },
+          { type: 'text', text: `デジモンカードゲームのカード画像です。以下のルールに従いJSON形式で情報を抽出してください。
+
+【カード種別の見分け方】
+- カード左上または上部に「DIGITAMA」と書かれていればtype="DIGITAMA"
+- 「DIGIMON」ならtype="DIGIMON"
+- 「TAMER」ならtype="TAMER"
+- 「OPTION」ならtype="OPTION"
+- 「DIGIMON / OPTION」のように両方書かれていればtype="OPTION"（デュアルカード）
+
+【各タイプのルール（存在しない項目はnullにすること）】
+- DIGITAMA: level=タマゴのLv(通常2), cost=null, dp=null, effect=null, source_effect=進化元効果テキスト
+- DIGIMON:  level=Lv数値, cost=登場コスト数値, dp=DP数値（例:2000,5000,12000）, effect=テキスト, source_effect=進化元効果
+- TAMER:    level=null, dp=null, cost=登場コスト数値, effect=テキスト, source_effect=null
+- OPTION:   level=null, dp=null, cost=使用コスト数値, effect=テキスト, source_effect=null
+
+【色の判断】
+カードの枠・背景色で判断: 赤=Red, 青=Blue, 黄=Yellow, 緑=Green, 黒=Black, 紫=Purple, 白=White
+
+【その他】
+- カードIDは右下（例: BT21-004, EX4-005, P-037, AD1-016）
+- traitは「幼年期」「成長期」「成熟期」「完全体」「究極体」など（「/」区切りで複数可）
+- SAMPLEスタンプがあっても読み取れる情報は読み取る
+
+JSON形式（他のテキスト一切不要）:
+{"id":"","name":"","level":null,"type":"","color":"","color2":null,"cost":null,"dp":null,"effect":null,"source_effect":null,"trait":""}` }
         ]
       }]
     })

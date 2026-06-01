@@ -14,5 +14,21 @@
     "source_effect": null,
     "trait": "レッサー/ヒーロー",
     "rarity": "C"
+  },
+  "EX4-005": {
+    "id": "EX4-005",
+    "name": "アグモン",
+    "name_en": "Agumon",
+    "level": 3,
+    "type": "DIGIMON",
+    "color": "Red",
+    "color2": "Yellow",
+    "cost": 3,
+    "dp": 2000,
+    "effect": "【相手のターン】ターン1赤か黒の自分のテイマーがいる間、このデジモンはセキュリティー+1する。",
+    "effect_en": "[Start of Your Main Phase] If you have a red or yellow Tamer in play, gain 1 memory.",
+    "source_effect": "【自分のターン】ターン1赤か黒の自分のテイマーがいる間、このデジモンはセキュリティーアタック+1する。",
+    "trait": "爬虫類型/ワクチン種",
+    "rarity": "U"
   }
 }

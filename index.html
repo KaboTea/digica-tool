@@ -535,9 +535,17 @@ body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-
   <!-- Search panel -->
   <div class="search-panel">
     <div class="panel-head">
-      <h2>⬡ カード検索</h2>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;"><h2 style="margin:0;">⬡ カード検索</h2><button onclick="openSettings()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);border-radius:5px;padding:3px 8px;cursor:pointer;font-size:11px;">⚙️</button></div>
       <input class="search-input" id="search-input" placeholder="カード名（英語）例: Agumon / ShineGreymon" autocomplete="off">
       <div class="search-hint">※ digimoncard.io APIを使用（英語名で検索）</div>
+      <div style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px;">
+        <div style="font-size:10px;color:var(--accent2);margin-bottom:5px;">📄 PDFからカード登録</div>
+        <label style="display:block;background:var(--bg3);border:1px dashed var(--border2);border-radius:6px;padding:7px;text-align:center;cursor:pointer;font-size:11px;color:var(--text2);">
+          PDFをここにドロップ or クリック
+          <input type="file" id="pdf-upload" accept=".pdf" style="display:none">
+        </label>
+        <div id="pdf-status" style="font-size:10px;color:var(--text2);margin-top:4px;"></div>
+      </div>
     </div>
     <div class="search-results" id="search-results">
       <div class="search-loading">カード名を入力して検索</div>
@@ -672,6 +680,59 @@ body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-
 <div class="ctx" id="ctx"></div>
 
 <script>
+// ============================================================
+// CARD DB（IndexedDB経由で永続保存）
+// ============================================================
+const DB_NAME = 'DigiCardDB';
+const DB_VER  = 1;
+const STORE   = 'cards';
+let db = null;
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    if (db) { resolve(db); return; }
+    const req = indexedDB.open(DB_NAME, DB_VER);
+    req.onupgradeneeded = e => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains(STORE)) {
+        d.createObjectStore(STORE, { keyPath: 'id' });
+      }
+    };
+    req.onsuccess = e => { db = e.target.result; resolve(db); };
+    req.onerror   = e => reject(e);
+  });
+}
+async function dbGet(id) {
+  const d = await openDB();
+  return new Promise((res, rej) => {
+    const tx = d.transaction(STORE, 'readonly');
+    const req = tx.objectStore(STORE).get(id);
+    req.onsuccess = () => res(req.result || null);
+    req.onerror   = () => res(null);
+  });
+}
+async function dbPut(card) {
+  const d = await openDB();
+  return new Promise((res, rej) => {
+    const tx = d.transaction(STORE, 'readwrite');
+    tx.objectStore(STORE).put(card);
+    tx.oncomplete = () => res();
+    tx.onerror    = () => rej();
+  });
+}
+async function dbGetAll() {
+  const d = await openDB();
+  return new Promise((res) => {
+    const tx = d.transaction(STORE, 'readonly');
+    const req = tx.objectStore(STORE).getAll();
+    req.onsuccess = () => res(req.result || []);
+    req.onerror   = () => res([]);
+  });
+}
+
+// PDF処理用ワーカー変数
+let pdfProcessing = false;
+
 // ============================================================
 // DATA
 // ============================================================
@@ -837,7 +898,29 @@ function addToDeck(e) {
     existing.count++;
   } else {
     if (total >= limit) { showLog(`${isEgg ? '育成' : 'メイン'}デッキが上限（${limit}枚）です`); return; }
-    target.push({ id: card.id, name: card.name, count: 1, cardData: card });
+    // DBとGitHub画像をマージ
+  (async () => {
+    const db = await loadCardDb();
+    const dbEntry = db[card.id];
+    const cached = await dbGet(card.id);
+    // GitHub画像URLを設定
+    const ghUrl = ghImgUrl(card.id);
+    const merged = {
+      ...card,
+      ...(dbEntry || {}),
+      ...(cached || {}),
+      id: card.id,
+      ghImgUrl: ghUrl,
+    };
+    // ローカルキャッシュになければ追加
+    if (!cached && dbEntry) {
+      dbEntry.ghImgUrl = ghUrl;
+      await dbPut(dbEntry);
+    }
+    target.push({ id: card.id, name: card.name, count: 1, cardData: merged });
+    renderDeckList();
+  })();
+  return;
   }
   // switch to correct tab
   if (isEgg && activeTab !== 'egg') switchTab('egg');
@@ -880,16 +963,16 @@ function renderDeckSection(deck, elId, which) {
   deck.forEach(entry => {
     const div = document.createElement('div');
     div.className = 'deck-card-item';
-    const faceSegs = [entry.cardData.color, entry.cardData.color2].filter(Boolean);
-    const faceCols = (faceSegs.length ? faceSegs : ['Colorless']).map(c => `<div style="flex:1;background:${colorHex(c)}"></div>`).join('');
+    const deckImgSrc = entry.cardData.imageB64
+      ? `data:image/jpeg;base64,${entry.cardData.imageB64}`
+      : (entry.cardData.ghImgUrl || null);
+    const deckFaceSegs = [entry.cardData.color, entry.cardData.color2].filter(Boolean);
+    const deckFaceCols = (deckFaceSegs.length ? deckFaceSegs : ['Colorless']).map(c => `<div style="flex:1;background:${colorHex(c)}"></div>`).join('');
+    const deckFaceHtml = deckImgSrc
+      ? `<img src="${deckImgSrc}" style="width:100%;height:100%;object-fit:cover;display:block;">`
+      : `<div style="flex:1;display:flex;">${deckFaceCols}</div><div style="background:rgba(0,0,0,0.75);padding:2px 3px;"><div style="font-size:8px;color:#aac8ff;">${cardTypeLabel(entry.cardData)}</div><div style="font-size:7px;color:#e8eeff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${entry.name}</div></div>`;
     div.innerHTML = `
-      <div style="width:60px;height:84px;display:flex;flex-direction:column;border-radius:4px;border:1px solid var(--border);overflow:hidden;cursor:pointer;" title="${entry.name}&#10;${entry.id}">
-        <div style="flex:1;display:flex;">${faceCols}</div>
-        <div style="background:rgba(0,0,0,0.75);padding:2px 3px;">
-          <div style="font-size:8px;color:#aac8ff;">${cardTypeLabel(entry.cardData)}</div>
-          <div style="font-size:7px;color:#e8eeff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${entry.name}</div>
-        </div>
-      </div>
+      <div style="width:60px;height:84px;display:flex;flex-direction:column;border-radius:4px;border:1px solid var(--border);overflow:hidden;cursor:pointer;" title="${entry.name}&#10;${entry.id}">${deckFaceHtml}</div>
       <div class="deck-card-count">${entry.count}</div>
       <button class="deck-card-remove" onclick="removeFromDeck('${which}','${entry.id}')">−</button>`;
     div.querySelector('div').addEventListener('click', () => showCardDetail(entry.cardData));
@@ -1002,7 +1085,14 @@ function makeGameCard(card, zone) {
   div.dataset.uid = card.uid;
   div.dataset.zone = zone;
   div.title = `${card.name} [${card.id || ''}]`;
-  div.innerHTML = `<div class="g-card-face">${cardFaceHtml(card)}</div><button class="card-menu-btn">▼</button>`;
+  // DB画像があれば使う、なければ色帯
+  const imgSrc = card.imageB64
+    ? `data:image/jpeg;base64,${card.imageB64}`
+    : (card.ghImgUrl || null);
+  const faceContent = imgSrc
+    ? `<img src="${imgSrc}" style="width:100%;height:100%;object-fit:cover;border-radius:4px;display:block;">`
+    : cardFaceHtml(card);
+  div.innerHTML = `<div class="g-card-face">${faceContent}</div><button class="card-menu-btn">▼</button>`;
   div.querySelector('.card-menu-btn').addEventListener('click', e => {
     e.stopPropagation();
     openCtxMenu(e, card, zone);
@@ -1149,6 +1239,14 @@ const translateCache = {};
 async function showCardDetail(card) {
   const cdImg = document.getElementById('cd-img');
   cdImg.style.cssText = 'display:flex;flex-direction:column;overflow:hidden;border-radius:6px;flex-shrink:0;width:120px;height:168px;';
+  // GitHub画像があれば詳細でも表示
+  if (card.ghImgUrl || card.imageB64) {
+    const src = card.imageB64 ? `data:image/jpeg;base64,${card.imageB64}` : card.ghImgUrl;
+    cdImg.style.cssText = 'flex-shrink:0;width:120px;height:168px;border-radius:6px;overflow:hidden;';
+    cdImg.innerHTML = `<img src="${src}" style="width:100%;height:100%;object-fit:cover;">`;
+  } else {
+    cdImg.style.cssText = 'display:flex;flex-direction:column;overflow:hidden;border-radius:6px;flex-shrink:0;width:120px;height:168px;';
+  }
   const cdSegs = [card.color, card.color2].filter(Boolean);
   const cdCols = (cdSegs.length ? cdSegs : ['Colorless']).map(c => `<div style="flex:1;background:${colorHex(c)}"></div>`).join('');
   cdImg.innerHTML = `<div style="flex:1;display:flex;">${cdCols}</div><div style="background:rgba(0,0,0,0.8);padding:6px 8px;"><div style="font-size:13px;font-weight:bold;color:#aac8ff;">${cardTypeLabel(card)}</div><div style="font-size:11px;color:#ffe080;">${cardCostLabel(card)}</div><div style="font-size:10px;color:#e8eeff;">${card.name||''}</div></div>`;
@@ -1195,6 +1293,358 @@ async function showCardDetail(card) {
 function closeCardDetail() { document.getElementById('card-detail-overlay').classList.remove('open'); }
 
 // ============================================================
+// PDF PROCESSING
+// ============================================================
+
+// PDFをページ画像に変換して9枚切り抜き→Claude APIで読み取り→DB保存
+document.addEventListener('DOMContentLoaded', () => {
+  const input = document.getElementById('pdf-upload');
+  if (input) {
+    input.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      await processPDF(file);
+      e.target.value = '';
+    });
+  }
+});
+
+async function processPDF(file) {
+  const status = document.getElementById('pdf-status');
+  status.textContent = 'PDFを読み込み中…';
+  status.style.color = 'var(--accent2)';
+  try {
+    // PDF.jsで読み込み
+    const pdfjsLib = await loadPdfJs();
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const totalPages = pdf.numPages;
+    status.textContent = `${totalPages}ページ検出。処理中…`;
+
+    let saved = 0;
+    let skipped = 0;
+
+    for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+      status.textContent = `ページ ${pageNum}/${totalPages} 処理中…`;
+      const page = await pdf.getPage(pageNum);
+      const scale = 2.5;
+      const viewport = page.getViewport({ scale });
+      const canvas = document.createElement('canvas');
+      canvas.width  = viewport.width;
+      canvas.height = viewport.height;
+      const ctx = canvas.getContext('2d');
+      await page.render({ canvasContext: ctx, viewport }).promise;
+
+      // 空白トリム
+      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const trimmed = trimWhitespace(canvas, imgData);
+
+      // 9枚に切り分け
+      const cards9 = split3x3(trimmed);
+
+      // 各カードをClaude APIで読み取り
+      for (let i = 0; i < cards9.length; i++) {
+        const cardCanvas = cards9[i];
+        const b64 = cardCanvas.toDataURL('image/jpeg', 0.9).split(',')[1];
+        status.textContent = `P${pageNum} カード${i+1}/9 読み取り中…`;
+        try {
+          const cardInfo = await readCardWithClaude(b64);
+          if (cardInfo && cardInfo.id) {
+            // 既存チェック
+            const db = await loadCardDb();
+            if (!db[cardInfo.id]) {
+              status.textContent = `P${pageNum} カード${i+1}/9 GitHubに保存中: ${cardInfo.name}…`;
+              await saveCardToGitHub(cardInfo, b64);
+              // ローカルDBにも保存（高速アクセス用）
+              cardInfo.imageB64 = b64;
+              await dbPut(cardInfo);
+              saved++;
+            } else {
+              skipped++;
+            }
+          }
+        } catch(e) {
+          console.warn('カード読み取りエラー:', e);
+        }
+        await sleep(300); // レート制限対策
+      }
+    }
+    status.textContent = `✓ 完了: ${saved}枚登録 / ${skipped}枚スキップ（既存）`;
+    status.style.color = 'var(--green)';
+  } catch(e) {
+    status.textContent = `エラー: ${e.message}`;
+    status.style.color = 'var(--red)';
+    console.error(e);
+  }
+}
+
+// PDF.jsを動的ロード
+function loadPdfJs() {
+  return new Promise((resolve, reject) => {
+    if (window.pdfjsLib) { resolve(window.pdfjsLib); return; }
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    script.onload = () => {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      resolve(window.pdfjsLib);
+    };
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+}
+
+// 空白トリム
+function trimWhitespace(canvas, imgData) {
+  const { width, height, data } = imgData;
+  const isWhiteRow = (y) => {
+    let sum = 0;
+    for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * 4;
+      sum += (data[i] + data[i+1] + data[i+2]) / 3;
+    }
+    return (sum / width) > 225;
+  };
+  const isWhiteCol = (x) => {
+    let sum = 0;
+    for (let y = 0; y < height; y++) {
+      const i = (y * width + x) * 4;
+      sum += (data[i] + data[i+1] + data[i+2]) / 3;
+    }
+    return (sum / height) > 225;
+  };
+  let top = 0, bottom = height-1, left = 0, right = width-1;
+  while (top < height && isWhiteRow(top)) top++;
+  while (bottom > top && isWhiteRow(bottom)) bottom--;
+  while (left < width && isWhiteCol(left)) left++;
+  while (right > left && isWhiteCol(right)) right--;
+
+  const out = document.createElement('canvas');
+  out.width  = right - left + 1;
+  out.height = bottom - top + 1;
+  out.getContext('2d').drawImage(canvas, left, top, out.width, out.height, 0, 0, out.width, out.height);
+  return out;
+}
+
+// 3×3に分割（境界は輝度プロファイルで精密化）
+function split3x3(canvas) {
+  const w = canvas.width, h = canvas.height;
+  const ctx = canvas.getContext('2d');
+  const imgData = ctx.getImageData(0, 0, w, h).data;
+
+  const rowBright = [];
+  for (let y = 0; y < h; y++) {
+    let s = 0;
+    for (let x = 0; x < w; x++) { const i=(y*w+x)*4; s+=(imgData[i]+imgData[i+1]+imgData[i+2])/3; }
+    rowBright.push(s / w);
+  }
+  const colBright = [];
+  for (let x = 0; x < w; x++) {
+    let s = 0;
+    for (let y = 0; y < h; y++) { const i=(y*w+x)*4; s+=(imgData[i]+imgData[i+1]+imgData[i+2])/3; }
+    colBright.push(s / h);
+  }
+
+  const findSep = (arr, expected, range=60) => {
+    const s = Math.max(0, expected-range), e = Math.min(arr.length, expected+range);
+    let maxV = -1, maxI = expected;
+    for (let i = s; i < e; i++) { if (arr[i] > maxV) { maxV = arr[i]; maxI = i; } }
+    return maxI;
+  };
+
+  const h1 = findSep(rowBright, Math.floor(h/3));
+  const h2 = findSep(rowBright, Math.floor(h*2/3));
+  const w1 = findSep(colBright, Math.floor(w/3));
+  const w2 = findSep(colBright, Math.floor(w*2/3));
+
+  const hCuts = [0, h1, h2, h];
+  const wCuts = [0, w1, w2, w];
+  const pad = 3;
+  const result = [];
+
+  for (let r = 0; r < 3; r++) {
+    for (let c = 0; c < 3; c++) {
+      const sy = hCuts[r]+pad, ey = hCuts[r+1]-pad;
+      const sx = wCuts[c]+pad, ex = wCuts[c+1]-pad;
+      const out = document.createElement('canvas');
+      out.width = ex-sx; out.height = ey-sy;
+      out.getContext('2d').drawImage(canvas, sx, sy, out.width, out.height, 0, 0, out.width, out.height);
+      result.push(out);
+    }
+  }
+  return result;
+}
+
+// Claude APIでカード情報読み取り
+async function readCardWithClaude(b64) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 600,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: b64 } },
+          { type: 'text', text: `このデジモンカードゲームのカード画像からJSON形式で情報を抽出してください。
+{"id":"カードID(例:BT21-004)","name":"カード名(日本語)","level":レベル数値orNull,"type":"DIGITAMA/DIGIMON/TAMER/OPTION","color":"Red/Blue/Yellow/Green/Black/Purple/White","color2":null or "色","cost":コスト数値orNull,"dp":DP数値orNull,"effect":"効果テキスト日本語","source_effect":"進化元効果orNull","trait":"成長期など"}
+JSONのみ返してください。` }
+        ]
+      }]
+    })
+  });
+  const data = await res.json();
+  let text = data.content?.[0]?.text || '';
+  text = text.replace(/```json|```/g, '').trim();
+  return JSON.parse(text);
+}
+
+// カードDB検索（ローカルDB → API fallback）
+async function getCardData(id) {
+  const cached = await dbGet(id);
+  if (cached) return cached;
+  return null;
+}
+
+// DB内の画像URLを返す（カード表示用）
+function dbImgUrl(card) {
+  if (card.imageB64) return `data:image/jpeg;base64,${card.imageB64}`;
+  return null;
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+
+// ============================================================
+// GITHUB 連携
+// ============================================================
+
+// 設定はlocalStorageに保存（トークンはブラウザローカルのみ）
+function loadSettings() {
+  return {
+    token: localStorage.getItem('ghToken') || '',
+    user:  localStorage.getItem('ghUser')  || '',
+    repo:  localStorage.getItem('ghRepo')  || '',
+  };
+}
+function openSettings() {
+  const cfg = loadSettings();
+  document.getElementById('cfg-token').value = cfg.token;
+  document.getElementById('cfg-user').value  = cfg.user;
+  document.getElementById('cfg-repo').value  = cfg.repo;
+  document.getElementById('cfg-status').textContent = '';
+  document.getElementById('settings-modal').classList.add('open');
+}
+async function saveSettings() {
+  const token = document.getElementById('cfg-token').value.trim();
+  const user  = document.getElementById('cfg-user').value.trim();
+  const repo  = document.getElementById('cfg-repo').value.trim();
+  const status = document.getElementById('cfg-status');
+  if (!token || !user || !repo) { status.textContent = '全項目を入力してください'; status.style.color='var(--red)'; return; }
+  status.textContent = '接続確認中…'; status.style.color = 'var(--text2)';
+  try {
+    const res = await fetch(`https://api.github.com/repos/${user}/${repo}`, {
+      headers: { Authorization: `token ${token}`, Accept: 'application/vnd.github.v3+json' }
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    localStorage.setItem('ghToken', token);
+    localStorage.setItem('ghUser',  user);
+    localStorage.setItem('ghRepo',  repo);
+    status.textContent = '✓ 接続成功！設定を保存しました';
+    status.style.color = 'var(--green)';
+  } catch(e) {
+    status.textContent = `接続失敗: ${e.message}`;
+    status.style.color = 'var(--red)';
+  }
+}
+
+// GitHubにファイルをアップロード（Base64）
+async function ghUploadFile(path, b64content, message) {
+  const cfg = loadSettings();
+  if (!cfg.token) throw new Error('GitHub Token未設定');
+  const url = `https://api.github.com/repos/${cfg.user}/${cfg.repo}/contents/${path}`;
+  // 既存ファイルのSHAを取得（更新の場合に必要）
+  let sha = null;
+  try {
+    const existing = await fetch(url, { headers: { Authorization: `token ${cfg.token}` } });
+    if (existing.ok) { const d = await existing.json(); sha = d.sha; }
+  } catch(e) {}
+  const body = { message, content: b64content };
+  if (sha) body.sha = sha;
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: { Authorization: `token ${cfg.token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) throw new Error(`GitHub upload failed: ${res.status}`);
+  return await res.json();
+}
+
+// GitHubからファイルを取得
+async function ghGetFile(path) {
+  const cfg = loadSettings();
+  if (!cfg.token || !cfg.user || !cfg.repo) return null;
+  const url = `https://api.github.com/repos/${cfg.user}/${cfg.repo}/contents/${path}`;
+  try {
+    const res = await fetch(url, { headers: { Authorization: `token ${cfg.token}` } });
+    if (!res.ok) return null;
+    const d = await res.json();
+    return { content: atob(d.content.replace(/\n/g, '')), sha: d.sha };
+  } catch(e) { return null; }
+}
+
+// カードDB (db.json) をGitHubから取得
+let cardDbCache = null;
+async function loadCardDb() {
+  if (cardDbCache) return cardDbCache;
+  const file = await ghGetFile('cards/db.json');
+  if (file) {
+    cardDbCache = JSON.parse(file.content);
+  } else {
+    cardDbCache = {};
+  }
+  return cardDbCache;
+}
+
+// カードDBに1枚追加してGitHubに保存
+async function saveCardToGitHub(cardInfo, imageB64) {
+  const cfg = loadSettings();
+  if (!cfg.token) { alert('設定からGitHub Tokenを設定してください'); return; }
+
+  // 1. 画像をアップロード
+  const imgPath = `cards/${cardInfo.id}.jpg`;
+  await ghUploadFile(imgPath, imageB64, `Add card image: ${cardInfo.id}`);
+
+  // 2. db.jsonを更新
+  const db = await loadCardDb();
+  db[cardInfo.id] = {
+    id:            cardInfo.id,
+    name:          cardInfo.name,
+    level:         cardInfo.level,
+    type:          cardInfo.type,
+    color:         cardInfo.color,
+    color2:        cardInfo.color2 || null,
+    cost:          cardInfo.cost,
+    dp:            cardInfo.dp,
+    effect:        cardInfo.effect,
+    source_effect: cardInfo.source_effect || null,
+    trait:         cardInfo.trait || null,
+  };
+  cardDbCache = db;
+  const dbB64 = btoa(unescape(encodeURIComponent(JSON.stringify(db, null, 2))));
+  await ghUploadFile('cards/db.json', dbB64, `Update db: ${cardInfo.id}`);
+  return db[cardInfo.id];
+}
+
+// GitHubのカード画像URLを返す
+function ghImgUrl(cardId) {
+  const cfg = loadSettings();
+  if (!cfg.user || !cfg.repo) return null;
+  return `https://raw.githubusercontent.com/${cfg.user}/${cfg.repo}/main/cards/${cardId}.jpg`;
+}
+
+// ============================================================
 // UTILS
 // ============================================================
 function shuffle(arr) {
@@ -1209,5 +1659,36 @@ function showLog(msg) {
   document.getElementById('game-log').textContent = '> ' + msg;
 }
 </script>
+
+<!-- 設定モーダル -->
+<div class="modal-overlay" id="settings-modal">
+  <div class="modal" style="width:400px;">
+    <h3>⚙️ 設定</h3>
+    <div style="display:flex;flex-direction:column;gap:12px;margin-top:8px;">
+      <div>
+        <div style="font-size:11px;color:var(--accent2);margin-bottom:4px;">GitHub Personal Access Token</div>
+        <input id="cfg-token" type="password" placeholder="ghp_xxxxxxxxxxxx"
+          style="width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:6px;padding:7px 10px;font-size:12px;outline:none;">
+        <div style="font-size:10px;color:var(--text2);margin-top:3px;">repo スコープのTokenを入力してください</div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--accent2);margin-bottom:4px;">GitHubユーザー名</div>
+        <input id="cfg-user" type="text" placeholder="kabotea"
+          style="width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:6px;padding:7px 10px;font-size:12px;outline:none;">
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--accent2);margin-bottom:4px;">リポジトリ名</div>
+        <input id="cfg-repo" type="text" placeholder="-"
+          style="width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:6px;padding:7px 10px;font-size:12px;outline:none;">
+      </div>
+      <div id="cfg-status" style="font-size:11px;color:var(--text2);min-height:16px;"></div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="saveSettings()" style="flex:1;background:var(--accent);border:none;color:#fff;border-radius:6px;padding:8px;cursor:pointer;font-size:13px;">保存して接続テスト</button>
+        <button onclick="closeModal('settings-modal')" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);border-radius:6px;padding:8px 14px;cursor:pointer;font-size:12px;">閉じる</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>

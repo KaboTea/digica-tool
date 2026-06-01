@@ -238,5 +238,21 @@
     "source_effect": null,
     "trait": "ウイルス種/魔王型",
     "rarity": null
+  },
+  "BT13-095": {
+    "id": "BT13-095",
+    "name": "大門大",
+    "name_en": "",
+    "level": null,
+    "type": "TAMER",
+    "color": "Red",
+    "color2": "Yellow",
+    "cost": 5,
+    "dp": null,
+    "effect": "【登場時】自分のターン内制限 メモリーが2以下ならば、3にする。\n【自分のターン】このテイマーをレストできる。\nそうしたとき、ターン終了時まで、このターンの間、相手のデジモン1体はDP-3000。その後、名前に「アグモン」か「グレイモン」を含む自分のデジモンがいるなら、メモリー+1。",
+    "effect_en": "",
+    "source_effect": null,
+    "trait": null,
+    "rarity": null
   }
 }

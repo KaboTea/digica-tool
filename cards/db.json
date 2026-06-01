@@ -254,5 +254,21 @@
     "source_effect": null,
     "trait": null,
     "rarity": null
+  },
+  "BT12-092": {
+    "id": "BT12-092",
+    "name": "大門大",
+    "name_en": "",
+    "level": null,
+    "type": "TAMER",
+    "color": "Red",
+    "color2": null,
+    "cost": 4,
+    "dp": null,
+    "effect": "【登場時】【アタックフェイズ】[ターンに1回]自分の「アグモン」が「グレイモン」を含む名前のデジモンかいるとき、1コスト支払うことで、このターンの間、このテイマーはデジモン・DP3000として扱う。",
+    "effect_en": "",
+    "source_effect": "【自分のターン】このテイマーがレストしているとき、自分のデジモン1体を手札の名前に「グレイモン」を含む黄の力ードにコストを支払わずに進化できる。",
+    "trait": null,
+    "rarity": null
   }
 }

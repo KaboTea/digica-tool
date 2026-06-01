@@ -37,5 +37,18 @@
     "effect": "オーバーフロー《-3》《バトルエリアのカードの下から、それ以外のカードになるまで破棄できる数。メモリー3》",
     "source_effect": null,
     "trait": "完全体/ワクチン種/サイボーグ型"
+  },
+  "BT15-038": {
+    "id": "BT15-038",
+    "name": "エンジェウーモンACE",
+    "level": null,
+    "type": "DIGIMON",
+    "color": "Yellow",
+    "color2": null,
+    "cost": null,
+    "dp": null,
+    "effect": "オーバーフロー(-5)(バトルエリアがカードの下から、それ以外の軸に起きる場合、メモリ-3)",
+    "source_effect": null,
+    "trait": "完全体/ワクチン種/大天使型"
   }
 }

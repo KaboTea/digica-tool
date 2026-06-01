@@ -14,5 +14,21 @@
     "source_effect": null,
     "trait": "幼年期/レッサー/ピコロ",
     "rarity": null
+  },
+  "EX4-005": {
+    "id": "EX4-005",
+    "name": "アグモン",
+    "name_en": "",
+    "level": 3,
+    "type": "DIGIMON",
+    "color": "Red",
+    "color2": "Yellow",
+    "cost": 3,
+    "dp": 2000,
+    "effect": "【相手のターン】ターン1 赤か黄の自分のテイマーがいるなら、このデジモンのDPを+2000する。",
+    "effect_en": "",
+    "source_effect": "【自分のターン】ターン1 赤か黄の自分のテイマーがいるなら、自分のメモリーを+1する。",
+    "trait": "ワクチン種/爬虫類型",
+    "rarity": null
   }
 }

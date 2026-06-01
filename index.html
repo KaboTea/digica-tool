@@ -1754,26 +1754,45 @@ function trimWhitespace(canvas, imgData) {
   return out;
 }
 
-// 3×3に分割（固定座標 - デジカレシピクリエイターPDFフォーマット固定）
-// 戻り値: [{full: canvas, effect: canvas}] × 9枚
+// PDF切り抜き（固定座標 + 行数自動検出）
+// 座標はデジカレシピクリエイターPDF 3倍スケール(1786x2526)で計測・確定
+// 余白: 上140px, 下136px, 左89px, 右86px
+// 戻り値: [{full: canvas, effect: canvas}]
 function split3x3(canvas) {
   const w = canvas.width, h = canvas.height;
 
-  // 固定比率（PDF 3倍スケール計測値から算出）
-  const colRatios = [0, 481/1564, 1015/1564, 1];
-  const rowRatios = [0, 717/2219, 1476/2219, 1];
-  const wCuts = colRatios.map(r => Math.round(r * w));
-  const hCuts = rowRatios.map(r => Math.round(r * h));
+  // スケール係数（基準サイズ 1786x2526 からの比率）
+  const BASE_W = 1786, BASE_H = 2526;
+  const sx_scale = w / BASE_W;
+  const sy_scale = h / BASE_H;
+
+  // 固定座標（3倍スケール基準）を実際のサイズにスケール
+  const col_abs = [89, 626, 1163, 1700].map(x => Math.round(x * sx_scale));
+  const row3_abs = [140, 890, 1640, 2390].map(y => Math.round(y * sy_scale)); // 3行
+  const row2_abs = [140, 1265, 2390].map(y => Math.round(y * sy_scale));      // 2行
+  const row1_abs = [140, 2390].map(y => Math.round(y * sy_scale));            // 1行
+
+  // 行数を縦横比で自動判定
+  const ratio = h / w;
+  let rowCuts;
+  if (ratio > 1.2) {
+    rowCuts = row3_abs;
+  } else if (ratio > 0.7) {
+    rowCuts = row2_abs;
+  } else {
+    rowCuts = row1_abs;
+  }
+  const nRows = rowCuts.length - 1;
 
   const pad = 4;
   const result = [];
 
-  for (let r = 0; r < 3; r++) {
+  for (let r = 0; r < nRows; r++) {
     for (let c = 0; c < 3; c++) {
-      const sx = wCuts[c]+pad, ex = wCuts[c+1]-pad;
-      const sy = hCuts[r]+pad, ey = hCuts[r+1]-pad;
-      const cardH = ey - sy;
+      const sx = col_abs[c]+pad,  ex = col_abs[c+1]-pad;
+      const sy = rowCuts[r]+pad,  ey = rowCuts[r+1]-pad;
       const cardW = ex - sx;
+      const cardH = ey - sy;
 
       // カード全体
       const full = document.createElement('canvas');
@@ -1788,8 +1807,8 @@ function split3x3(canvas) {
       effect.height = effectH * 2;
       effect.getContext('2d').drawImage(
         canvas,
-        sx, sy + effectY, cardW, effectH,   // 元の切り取り範囲
-        0, 0, cardW * 2, effectH * 2         // 2倍に拡大
+        sx, sy + effectY, cardW, effectH,
+        0, 0, cardW * 2, effectH * 2
       );
 
       result.push({ full, effect });

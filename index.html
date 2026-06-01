@@ -963,13 +963,15 @@ async function searchCards(q) {
     renderSearchResults(localResults, true);
     return;
   }
-  // ローカルにヒットしなければAPI検索（英語のみ）
+  // ローカルにヒットしなければallorigins経由でAPI検索
   try {
     document.getElementById('search-results').innerHTML = '<div class="search-loading">API検索中…</div>';
-    const url = `https://digimoncard.io/api-public/search.php?n=${encodeURIComponent(q)}&series=Digimon+Card+Game&sort=id&sortdirection=ASC&num=20`;
+    const target = `https://digimoncard.io/api-public/search.php?n=${encodeURIComponent(q)}&series=Digimon+Card+Game&sort=id&sortdirection=ASC&num=20`;
+    const url = `https://api.allorigins.win/get?url=${encodeURIComponent(target)}`;
     const res = await fetch(url);
     if (!res.ok) throw new Error('API error');
-    const data = await res.json();
+    const wrapper = await res.json();
+    const data = JSON.parse(wrapper.contents);
     const seen = new Set();
     const unique = data.filter(c => {
       if (seen.has(c.id)) return false;
@@ -978,7 +980,7 @@ async function searchCards(q) {
     });
     renderSearchResults(unique, false);
   } catch(e) {
-    document.getElementById('search-results').innerHTML = '<div class="search-loading">検索失敗。ネットワークを確認してください</div>';
+    document.getElementById('search-results').innerHTML = '<div class="search-loading">検索失敗。未登録カードは英語名で検索してください</div>';
   }
 }
 
@@ -1984,17 +1986,15 @@ async function loadCardDb() {
 // digimoncard.io APIから英語データを取得してマージ
 async function fetchEnglishCardData(cardId) {
   try {
-    const url = `https://digimoncard.io/api-public/search.php?card=${encodeURIComponent(cardId)}&series=Digimon+Card+Game`;
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000); // 5秒タイムアウト
-    const res = await fetch(url, { signal: controller.signal }).catch(() => null);
-    clearTimeout(timeout);
-    if (!res || !res.ok) return null;
-    const data = await res.json().catch(() => null);
+    const target = `https://digimoncard.io/api-public/search.php?card=${encodeURIComponent(cardId)}&series=Digimon+Card+Game`;
+    const url = `https://api.allorigins.win/get?url=${encodeURIComponent(target)}`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const wrapper = await res.json();
+    const data = JSON.parse(wrapper.contents);
     if (!data || !data.length) return null;
-    const match = data.find(c => c.id === cardId) || data[0];
-    return match;
-  } catch(e) { return null; } // CORSエラー含め全て無視してnullを返す
+    return data.find(c => c.id === cardId) || data[0];
+  } catch(e) { return null; }
 }
 
 // カードDBに1枚追加してGitHubに保存

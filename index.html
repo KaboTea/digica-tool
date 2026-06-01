@@ -1676,9 +1676,9 @@ async function processPDF(file) {
             const db = await loadCardDb();
             if (!db[cardInfo.id]) {
               status.textContent = `P${pageNum} カード${i+1}/9 GitHubに保存中: ${cardInfo.name}…`;
-              await saveCardToGitHub(cardInfo, b64);
+              await saveCardToGitHub(cardInfo, b64Full);
               // ローカルDBにも保存（高速アクセス用）
-              cardInfo.imageB64 = b64;
+              cardInfo.imageB64 = b64Full;
               await dbPut(cardInfo);
               saved++;
             } else {

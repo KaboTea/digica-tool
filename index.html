@@ -503,7 +503,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-
   <div class="search-panel">
     <div class="panel-head">
       <h2>⬡ カード検索</h2>
-      <input class="search-input" id="search-input" placeholder="カード名を入力（英語）例: Agumon" autocomplete="off">
+      <input class="search-input" id="search-input" placeholder="カード名（英語）例: Agumon / ShineGreymon" autocomplete="off">
       <div class="search-hint">※ digimoncard.io APIを使用（英語名で検索）</div>
     </div>
     <div class="search-results" id="search-results">
@@ -660,8 +660,23 @@ const newUid = () => ++uid;
 
 // card image url
 function imgUrl(card) {
-  // digimoncard.io uses /images/cards/{id}.jpg pattern
-  return `https://digimoncard.io/images/cards/${card.id}.jpg`;
+  const pretty = card.pretty_url || (card.id || '').toLowerCase().replace(/-/g, '-');
+  return `https://digimoncard.io/images/cards/${pretty}.jpg`;
+}
+
+// 日本語ラベル
+const TYPE_JA  = { Digimon:'デジモン', 'Digi-Egg':'タマゴ', Tamer:'テイマー', Option:'オプション' };
+const COLOR_JA = { Red:'赤', Blue:'青', Yellow:'黄', Green:'緑', Black:'黒', Purple:'紫', White:'白', Colorless:'無色' };
+function jaType(v)  { return TYPE_JA[v]  || v || ''; }
+function jaColor(v) { return COLOR_JA[v] || v || ''; }
+function jaLabel(card) {
+  const parts = [];
+  if (card.type)  parts.push(jaType(card.type));
+  const c = [card.color, card.color2].filter(Boolean).map(jaColor).join('/');
+  if (c) parts.push(c);
+  if (card.level) parts.push(`Lv.${card.level}`);
+  if (card.dp)    parts.push(`${Number(card.dp).toLocaleString()}DP`);
+  return parts.join(' · ');
 }
 
 // ============================================================
@@ -681,7 +696,7 @@ document.getElementById('search-input').addEventListener('input', function() {
 
 async function searchCards(q) {
   try {
-    const url = `https://digimoncard.io/api-public/search?n=${encodeURIComponent(q)}&series=Digimon+Card+Game&sort=id&sortdirection=ASC&num=20`;
+    const url = `https://digimoncard.io/index.php/api-public/search?n=${encodeURIComponent(q)}&series=Digimon+Card+Game&sort=id&sortdirection=ASC&num=20`;
     const res = await fetch(url);
     if (!res.ok) throw new Error('API error');
     const data = await res.json();
@@ -705,15 +720,12 @@ function renderSearchResults(cards) {
   cards.forEach(card => {
     const div = document.createElement('div');
     div.className = 'result-card';
-    const colorTag = card.color ? `${card.color}` : '';
-    const lvTag = card.level ? `Lv.${card.level}` : '';
-    const dpTag = card.dp ? `${card.dp.toLocaleString()}DP` : '';
     div.innerHTML = `
       <img class="result-thumb" src="${imgUrl(card)}" alt="${card.name}" onerror="this.style.background='#1a2a44'">
       <div class="result-info">
         <div class="result-name">${card.name}</div>
         <div class="result-id">${card.id}</div>
-        <div class="result-meta">${[card.type, colorTag, lvTag, dpTag].filter(Boolean).join(' · ')}</div>
+        <div class="result-meta">${jaLabel(card)}</div>
         <button class="result-add-btn" onclick="addToDeck(event)">+ デッキに追加</button>
       </div>`;
     div.dataset.card = JSON.stringify(card);
@@ -1049,8 +1061,8 @@ function showCardDetail(card) {
   document.getElementById('cd-name').textContent = card.name || '';
   document.getElementById('cd-id').textContent = card.id || '';
   const stats = [
-    card.type && `タイプ: ${card.type}`,
-    card.color && `カラー: ${card.color}${card.color2 ? ' / ' + card.color2 : ''}`,
+    card.type && `タイプ: ${jaType(card.type)}`,
+    card.color && `カラー: ${jaColor(card.color)}${card.color2 ? ' / ' + jaColor(card.color2) : ''}`,
     card.level && `レベル: ${card.level}`,
     card.dp && `DP: ${card.dp.toLocaleString()}`,
     card.play_cost != null && `登場コスト: ${card.play_cost}`,

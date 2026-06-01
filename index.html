@@ -871,7 +871,7 @@ async function searchCards(q) {
   // ローカルにヒットしなければAPI検索（英語のみ）
   try {
     document.getElementById('search-results').innerHTML = '<div class="search-loading">API検索中…</div>';
-    const url = `https://digimoncard.io/index.php/api-public/search?n=${encodeURIComponent(q)}&series=Digimon+Card+Game&sort=id&sortdirection=ASC&num=20`;
+    const url = `https://digimoncard.io/api-public/search.php?n=${encodeURIComponent(q)}&series=Digimon+Card+Game&sort=id&sortdirection=ASC&num=20`;
     const res = await fetch(url);
     if (!res.ok) throw new Error('API error');
     const data = await res.json();
@@ -1711,7 +1711,7 @@ async function loadCardDb() {
 // digimoncard.io APIから英語データを取得してマージ
 async function fetchEnglishCardData(cardId) {
   try {
-    const url = `https://digimoncard.io/index.php/api-public/search?card=${encodeURIComponent(cardId)}&series=Digimon+Card+Game`;
+    const url = `https://digimoncard.io/api-public/search.php?card=${encodeURIComponent(cardId)}&series=Digimon+Card+Game`;
     const res = await fetch(url);
     if (!res.ok) return null;
     const data = await res.json();

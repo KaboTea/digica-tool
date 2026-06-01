@@ -1,0 +1,18 @@
+{
+  "BT21-004": {
+    "id": "BT21-004",
+    "name": "コロモン",
+    "name_en": "",
+    "level": 2,
+    "type": "DIGIMON",
+    "color": "Yellow",
+    "color2": null,
+    "cost": 3,
+    "dp": 1000,
+    "effect": "【進化元枚数】自分のターン【ターンに1回】自分の黄の自分のデジモンがレストしたとき、≪1ドロー≫。",
+    "effect_en": "",
+    "source_effect": null,
+    "trait": "幼年期/レッサー/ピコロ",
+    "rarity": null
+  }
+}

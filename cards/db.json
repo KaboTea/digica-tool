@@ -10,7 +10,8 @@
     "dp": null,
     "effect": "自分のデッキの上から5枚オープンする。その中のテーマに「アグモン」を含むカード1枚を手札に加える。残ったカードはデッキの下に戻す。",
     "source_effect": null,
-    "trait": "ワクチン種"
+    "trait": "ワクチン種",
+    "ghImgUrl": "https://raw.githubusercontent.com/KaboTea/digica-tool/main/cards/BT1-010.jpg"
   },
   "ST17-08": {
     "id": "ST17-08",

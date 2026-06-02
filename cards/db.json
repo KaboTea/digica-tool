@@ -1,0 +1,15 @@
+{
+  "BT1-010": {
+    "id": "BT1-010",
+    "name": "アグモン",
+    "level": null,
+    "type": "OPTION",
+    "color": "Red",
+    "color2": null,
+    "cost": null,
+    "dp": null,
+    "effect": "自分のデッキの上から5枚オープンする。その中のテーマに「アグモン」を含むカード1枚を手札に加える。残ったカードはデッキの下に戻す。",
+    "source_effect": null,
+    "trait": "ワクチン種"
+  }
+}

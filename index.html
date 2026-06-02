@@ -2109,8 +2109,7 @@ function showLog(msg) {
 // ============================================================
 async function openTermsEditor() {
   const terms = await loadTerms();
-  const text = Object.entries(terms).map(([en, ja]) => `${en} = ${ja}`).join('
-');
+  const text = Object.entries(terms).map(([en, ja]) => `${en} = ${ja}`).join('\n');
   document.getElementById('terms-editor').value = text;
   document.getElementById('terms-status').textContent = '';
   document.getElementById('terms-modal').classList.add('open');
@@ -2121,8 +2120,7 @@ async function saveTerms() {
   const cfg = loadSettings();
   if (!cfg.token) { status.textContent = 'GitHub Tokenが必要です'; status.style.color='var(--red)'; return; }
   try {
-    const lines = document.getElementById('terms-editor').value.split('
-');
+    const lines = document.getElementById('terms-editor').value.split('\n');
     const terms = {};
     lines.forEach(line => {
       const idx = line.indexOf(' = ');

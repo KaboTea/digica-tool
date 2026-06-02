@@ -680,6 +680,20 @@ body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-
   </div>
 </div>
 
+<!-- 用語辞書エディタ -->
+<div class="modal-overlay" id="terms-modal">
+  <div class="modal" style="width:480px;max-height:85vh;">
+    <h3>📖 用語辞書</h3>
+    <div style="font-size:10px;color:var(--text2);margin-bottom:8px;">英語 → 日本語の対応を編集できます。PDFカード登録時の翻訳に使用されます。</div>
+    <textarea id="terms-editor" rows="16" style="width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:5px;padding:8px;font-size:11px;outline:none;resize:vertical;font-family:monospace;line-height:1.6;"></textarea>
+    <div id="terms-status" style="font-size:10px;color:var(--text2);min-height:14px;margin-top:4px;"></div>
+    <div style="display:flex;gap:8px;margin-top:8px;">
+      <button onclick="saveTerms()" style="flex:1;background:var(--green);border:none;color:#fff;border-radius:6px;padding:8px;cursor:pointer;font-size:13px;font-weight:bold;">💾 GitHubに保存</button>
+      <button onclick="closeModal('terms-modal')" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);border-radius:6px;padding:8px 14px;cursor:pointer;font-size:12px;">閉じる</button>
+    </div>
+  </div>
+</div>
+
 <!-- カード編集モーダル -->
 <div class="modal-overlay" id="edit-modal">
   <div class="modal" style="width:460px;max-height:85vh;">
@@ -1678,7 +1692,7 @@ async function processPDF(file) {
             const db = await loadCardDb();
             if (!db[cardInfo.id]) {
               status.textContent = `P${pageNum} カード${i+1}/9 GitHubに保存中: ${cardInfo.name}…`;
-              await saveCardToGitHub(cardInfo, b64Full);
+              await saveCardToGitHub(cardInfo, b64Full, status);
               // ローカルDBにも保存（高速アクセス用）
               cardInfo.imageB64 = b64Full;
               await dbPut(cardInfo);
@@ -2018,23 +2032,41 @@ async function fetchEnglishCardData(cardId) {
 }
 
 // カードDBに1枚追加してGitHubに保存
-async function saveCardToGitHub(cardInfo, imageB64) {
+async function saveCardToGitHub(cardInfo, imageB64, status=null) {
   const cfg = loadSettings();
   if (!cfg.token) { alert('設定からGitHub Tokenを設定してください'); return; }
 
-  // OCRデータをそのまま保存（英語APIマージなし）
+  // APIからカードデータ取得
+  status && (status.textContent = `APIからデータ取得中: ${cardInfo.id}…`);
+  const apiData = await fetchCardDataById(cardInfo.id);
+
+  // 効果テキストを翻訳
+  const terms = await loadTerms();
+  let jaEffect = null, jaSourceEffect = null;
+  if (apiData?.main_effect) {
+    status && (status.textContent = `効果テキスト翻訳中: ${cardInfo.id}…`);
+    jaEffect = await translateEffect(apiData.main_effect, terms);
+  }
+  if (apiData?.source_effect) {
+    jaSourceEffect = await translateEffect(apiData.source_effect, terms);
+  }
+
   const merged = {
     id:            cardInfo.id,
-    name:          cardInfo.name,
-    level:         cardInfo.level  ?? null,
-    type:          cardInfo.type   || '',
-    color:         cardInfo.color  || '',
-    color2:        cardInfo.color2 || null,
-    cost:          cardInfo.cost   ?? null,
-    dp:            cardInfo.dp     ?? null,
-    effect:        cardInfo.effect || '',
-    source_effect: cardInfo.source_effect || null,
-    trait:         cardInfo.trait  || null,
+    name:          apiData?.name || cardInfo.id,
+    name_ja:       null, // 今後手動で追加可能
+    level:         apiData?.level ?? null,
+    type:          apiData?.type  || '',
+    color:         apiData?.color || '',
+    color2:        apiData?.color2 || null,
+    cost:          apiData?.play_cost ?? null,
+    dp:            apiData?.dp ?? null,
+    effect:        jaEffect,
+    effect_en:     apiData?.main_effect || null,
+    source_effect: jaSourceEffect,
+    source_effect_en: apiData?.source_effect || null,
+    trait:         apiData?.digi_type || null,
+    rarity:        apiData?.rarity || null,
   };
 
   // 2. 画像をアップロード
@@ -2070,6 +2102,41 @@ function shuffle(arr) {
 }
 function showLog(msg) {
   document.getElementById('game-log').textContent = '> ' + msg;
+}
+
+// ============================================================
+// 用語辞書エディタ
+// ============================================================
+async function openTermsEditor() {
+  const terms = await loadTerms();
+  const text = Object.entries(terms).map(([en, ja]) => `${en} = ${ja}`).join('
+');
+  document.getElementById('terms-editor').value = text;
+  document.getElementById('terms-status').textContent = '';
+  document.getElementById('terms-modal').classList.add('open');
+}
+
+async function saveTerms() {
+  const status = document.getElementById('terms-status');
+  const cfg = loadSettings();
+  if (!cfg.token) { status.textContent = 'GitHub Tokenが必要です'; status.style.color='var(--red)'; return; }
+  try {
+    const lines = document.getElementById('terms-editor').value.split('
+');
+    const terms = {};
+    lines.forEach(line => {
+      const idx = line.indexOf(' = ');
+      if (idx > 0) {
+        terms[line.substring(0, idx).trim()] = line.substring(idx + 3).trim();
+      }
+    });
+    termsCache = terms;
+    const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(terms, null, 2))));
+    await ghUploadFile('cards/terms.json', b64, 'Update terms dictionary');
+    status.textContent = '✓ 保存しました'; status.style.color = 'var(--green)';
+  } catch(e) {
+    status.textContent = `エラー: ${e.message}`; status.style.color = 'var(--red)';
+  }
 }
 
 // ===== 起動時: Token不要でDBを全員がロード =====
@@ -2109,6 +2176,7 @@ function showLog(msg) {
         リポジトリ: <span style="color:var(--accent2);">KaboTea/digica-tool</span>（固定）
       </div>
       <div id="cfg-status" style="font-size:11px;color:var(--text2);min-height:16px;"></div>
+      <button onclick="openTermsEditor()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);border-radius:6px;padding:6px;cursor:pointer;font-size:11px;width:100%;">📖 用語辞書を編集</button>
       <div style="display:flex;gap:8px;">
         <button onclick="saveSettings()" style="flex:1;background:var(--accent);border:none;color:#fff;border-radius:6px;padding:8px;cursor:pointer;font-size:13px;">保存して接続テスト</button>
         <button onclick="closeModal('settings-modal')" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);border-radius:6px;padding:8px 14px;cursor:pointer;font-size:12px;">閉じる</button>
